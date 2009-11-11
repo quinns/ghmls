@@ -1,0 +1,27 @@
+Index: contrib/location_cck/location_cck.module
+===================================================================
+RCS file: /cvs/drupal/contributions/modules/location/contrib/location_cck/location_cck.module,v
+retrieving revision 1.5.2.11
+diff -u -r1.5.2.11 location_cck.module
+--- contrib/location_cck/location_cck.module	3 Apr 2009 18:59:21 -0000	1.5.2.11
++++ contrib/location_cck/location_cck.module	15 May 2009 13:06:37 -0000
+@@ -345,7 +345,7 @@
+ 
+ function theme_location_cck_formatter_default($element) {
+   $field = content_fields($element['#field_name'], $element['#type_name']);
+-  $hide = array_keys(array_filter($field['location_settings']['display']['hide']));
++  $hide = (isset($field['location_settings']['display']['hide'])) ? array_keys(array_filter($field['location_settings']['display']['hide'])) : array();
+   $location = $element['#item'];
+   if (!empty($location['cck_preview_in_progress'])) {
+     // Our canary field is in place, we are in a node preview.
+@@ -386,7 +386,9 @@
+       // If the location exists, we need to set up the tokens.
+ 
+       $location = array(
+-        'hide' => array_keys(array_filter($item['location_settings']['display']['hide'])),
++        // There is no way to find out which elements to hide because $item does not contain
++        // the 'location_settings' element, so for now, just set it to be an empty array.
++        'hide' => array(),
+         'location' => location_load_location($item['lid']),
+       );
+ 

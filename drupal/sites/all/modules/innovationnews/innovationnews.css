@@ -1,0 +1,13 @@
+#innovationnews_story_info_title {
+  margin: 0;
+}
+
+ul.innovationnews_story_info {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 10px 0;
+}
+
+.innovationnews_story_info_readerstory {
+  color: #00f;
+}

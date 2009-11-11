@@ -1,0 +1,16 @@
+<?php
+// $Id: xmltokml.install,v 1.1.2.2 2008/09/10 02:35:19 JohnKarahalis Exp $
+
+/**
+ * Implementation of hook_uninstall().
+ *
+ * Delete all xmltokml variables.
+ */
+function xmltokml_uninstall() {
+  variable_del('xmltokml_file');
+  variable_del('xmltokml_title');
+  variable_del('xmltokml_author');
+  variable_del('xmltokml_body');
+  variable_del('xmltokml_location');
+  variable_del('xmltokml_image');
+} // function xmltokml_uninstall

@@ -1,0 +1,11 @@
+; $Id: xmltokml.info,v 1.1.2.2 2008/09/10 02:35:19 JohnKarahalis Exp $
+name = XML to KML
+description = Formats formats XML data as KML data for use in Google Earth™.
+core = 6.x
+
+; Information added by drupal.org packaging script on 2008-09-10
+version = "6.x-0.5"
+core = "6.x"
+project = "xmltokml"
+datestamp = "1221014419"
+

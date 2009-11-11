@@ -1,0 +1,38 @@
+<?php
+// $Id: transformations_xml.module,v 1.2 2009/06/25 14:29:56 jpetso Exp $
+/**
+ * @file
+ * XML Transformations - Transformations for processing XML data.
+ *
+ * Copyright 2009 by Jakob Petsovits ("jpetso", http://drupal.org/user/56020)
+ */
+
+
+/**
+ * Implementation of hook_ctools_plugin_api().
+ */
+function transformations_xml_ctools_plugin_api($module, $api) {
+  if ($module == 'transformations' && $api == 'transformations') {
+    $api_version = 1;
+    /*return array(
+      $api_version =>*/ return array(
+        'path' => drupal_get_path('module', 'transformations_xml') . '/transformations',
+        'version' => $api_version,
+    //  ),
+    );
+  }
+}
+
+/**
+ * Implementation of hook_transformations_data_wrapper_priority():
+ * Return an array of data classes (deriving from TfDataWrapper) that
+ * are suitable for holding the given @p $data.
+ */
+function transformations_xml_transformations_data_wrapper_priority($data) {
+  $priorities = array();
+
+  if (is_object($data) && ($data instanceof SimpleXMLElement || $data instanceof DOMNode)) {
+    $priorities['TfXMLNodeData'] = 2;
+  }
+  return $priorities;
+}

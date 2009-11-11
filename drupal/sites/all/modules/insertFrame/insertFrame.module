@@ -1,0 +1,107 @@
+<?php
+// $Id: insertFrame.module,v 1.1.4.5 2009/08/25 19:03:41 marcelbichon Exp $
+// Author: M. Morin
+
+global $_frameNo;
+function insertFrame_theme() {
+  return array(
+    'insertFrame_getURL' => array(
+      'arguments' => array('url' => NULL,'iframe_params' =>NULL),
+    ),
+    'insertFrame_init' => array(),
+    'insertFrame_custom' => array('onload' => NULL, 'iframe_params' =>NULL)
+  );
+}
+
+function insertFrame_init() {
+	drupal_add_js(drupal_get_path('module', 'insertFrame') . '/insertFrame.js');
+	$isOffline =  variable_get('site_offline', 0);
+	if (arg(0) != "admin" && $isOffline == 0) {
+		theme('insertFrame_init');
+	}
+}
+
+
+function theme_insertFrame_init() {}
+
+function _insertFrame_replacer($matches) {
+	return 	_insertFrame_getHTML($matches[1]);
+}
+
+function _insertFrame_getHTML($params) {
+
+	global $_frameNo;
+	$_frameNo++;
+	$aParams = explode(" ", $params);
+	$iframe_params = array (
+		"url" => "",
+		'width' => "100%",
+		"height" => "100%",
+		"scrolling" => "no",
+		"classname" => "",
+		"id" => "iframe$_frameNo",
+		"offset" => "15"
+	);
+	for ($i = 0; $i < count($aParams); $i++) {
+		if ($i == 0) {
+			$iframe_params["url"] = $aParams[$i];
+		} else {
+			$param = explode("=", $aParams[$i]);
+			if ($params != "") {
+				$iframe_params[strtolower($param[0])] = str_replace('"', "", $param[1]);
+			}
+		}
+	}
+	$class = ($iframe_params["classname"] != "" ? "class='" . $iframe_params["classname"] . "'" : "");
+	$code = "";
+	if ($iframe_params["url"] == "") {return "";}
+	$url = theme('insertFrame_getURL', $iframe_params["url"]);
+	if ($iframe_params["height"] == "100%") {
+		$onload = "onload='adjustHeight(this," . $iframe_params["offset"] . ")'";
+	}
+	$customCode = theme("insertFrame_custom",$onload, $iframe_params);
+	$code = $code . '<iframe ' . $customCode . ' name="' . $iframe_params["id"] . '" id="' . $iframe_params["id"] . '" src="' . $url .
+	'" scrolling="' . $iframe_params["scrolling"] . '" width="' . $iframe_params["width"] . '" height="' . $iframe_params["height"] . '" frameborder="0" ' . $class . '></iframe>';
+
+	return "$code";
+}
+function theme_insertFrame_custom($onload, $iframe_params) {return $onload;}
+function theme_insertFrame_getURL($url,$iframe_params =NULL) {
+	return $url;
+}
+
+function insertFrame_filter($op, $delta = 0, $format = -1, $text = '') {
+
+	$_frameNo = 0;
+	switch ($op) {
+		case 'list' :
+			return array (
+				0 => t('Include iFrame'
+			));
+		case 'description' :
+			return t('Include iFrame');
+		case 'prepare' :
+			return $text;
+		case "process" :
+			$text = preg_replace_callback("/\[\[\[(.*?)\]\]\]/", '_insertFrame_replacer', $text);
+			return $text;
+		default :
+			return $text;
+	}
+}
+
+function insertFrame_filter_tips($delta, $format, $long = false) {
+
+	$helpText = "[[[&lt;url&gt; width=&lt;w&gt; height=&lt;h&gt; scrolling=&lt;yes|no|auto&gt; className=&lt;class&gt; ID=&lt;id&gt; offset=&lt;offset&gt;]]] - insert a frame with url as source. <br/>";
+	if ($long) {
+		$helpText .= "    width     ==> Size as css declaration (%,px,em)<br/>";
+		$helpText .= "    height    ==> Height as css declaration (%,px,em)<br/>";
+		$helpText .= "                  if height=100% and url is in the same domain as web site, the height will be ajusted to the real height of the 	source<br/>";
+		$helpText .= "    scrolling ==> Scrollbar settings. Values from IFRAME tag.<br/>";
+		$helpText .= "    className ==> Name of a CSS class<br/>";
+		$helpText .= "    ID        ==> Id and name of the frame";
+		$helpText .= "    offset    ==> A number to add to correct (if needed) auto calculated height";
+	}
+	return t($helpText);
+}
+

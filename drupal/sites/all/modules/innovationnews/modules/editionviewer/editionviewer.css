@@ -1,0 +1,9 @@
+input#edit-submit.form-submit {
+  margin: 0;
+}
+
+#editionviewer-view-xml {
+  clear: both;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}

@@ -1,0 +1,81 @@
+<?php
+function network_manager_schema() {
+  $schema['network_manager_variable_map'] = array(
+  'description' => t('This allows you to map variables from a database'),
+  'fields' => array(
+    'variable' => array(
+      'description' => t('The variable name in the variables table'),
+      'type' => 'varchar',
+      'length' => '128',
+      'not null' => TRUE,
+    ),
+    'variable_name' => array(
+      'description' => t('Human readable name for the column'),
+      'type' => 'varchar',
+      'length' => '255',
+      'not null' => FALSE,
+    ),
+    'map' => array(
+      'description' => t('The map for values if they are defined'),
+      'type' => 'text',
+      'size' => 'big',
+      'not null' => FALSE,
+    ),
+    'link' => array(
+      'description' => t('Menu links if the Network Connector is installed'),
+      'type' => 'text',
+      'size' => 'big',
+      'not null' => FALSE,
+    ),
+  ),
+  'primary key' => array('variable'),
+  );
+  $schema['network_manager_user_settings'] = array(
+  'description' => t('Allows for User specific configurations of the interface'),
+  'fields' => array(
+    'uid' => array(
+      'description' => t('user id'),
+      'type' => 'int',
+      'not null' => TRUE,
+    ),
+    'network' => array(
+      'description' => t('network of sites from the total that they wish to keep track of'),
+      'type' => 'text',
+      'size' => 'big',
+      'not null' => TRUE,
+    ),
+    'variables' => array(
+      'description' => t('the variables they wish to view on their interface'),
+      'type' => 'text',
+      'size' => 'big',
+      'not null' => TRUE,
+    ),
+    'complex_variables' => array(
+      'description' => t('The packaged variables they wish to view'),
+      'type' => 'text',
+      'size' => 'big',
+      'not null' => TRUE,
+    ),
+  ),
+  'primary key' => array('uid'),
+);
+  return $schema;
+}
+
+function network_manager_install() {
+  // Create my tables.
+  drupal_install_schema('network_manager');
+  $map = serialize(array(0 => 'Off',1 => 'On'));
+  $paths =serialize(array(0=>'admin/settings/clean-urls',5=>'',6=>'',7=>''));
+  db_query("INSERT INTO {network_manager_variable_map} VALUES('clean_url', 'Clean URLs','%s','%s')",$map,$paths);
+  
+  $map = serialize(array(0 => null));
+  $paths =serialize(array(0=>'admin/build/themes',5=>'',6=>'',7=>'admin/appearance'));
+  db_query("INSERT INTO {network_manager_variable_map} VALUES('theme_default', 'Theme','%s','%s')",$map,$paths);
+}
+
+function network_manager_uninstall() {
+  // Drop my tables.
+  drupal_uninstall_schema('network_manager');
+}
+?>

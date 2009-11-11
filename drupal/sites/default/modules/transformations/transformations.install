@@ -1,0 +1,64 @@
+<?php
+// $Id: transformations.install,v 1.3 2009/06/01 19:38:59 jpetso Exp $
+/**
+ * @file
+ * Transformations -
+ * A framework for generic data transformation pipelines.
+ *
+ * Copyright 2009 by Jakob Petsovits ("jpetso", http://drupal.org/user/56020)
+ */
+
+/**
+ * Implementation of hook_schema().
+ */
+function transformations_schema() {
+  $schema['transformations_pipeline'] = array(
+    'description' => t('Persistent storage for operation pipelines.'),
+    'fields' => array(
+      'pipeline_id' => array(
+        'description' => t('Primary key: a unique integer id for the pipeline (managed privately by TfPipeline).'),
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'name' => array(
+        'description' => t('The user-visible name for the pipeline.'),
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'properties' => array(
+        'description' => t('A serialized array of pipeline properties assigned by third party modules.'),
+        'type' => 'text',
+        'size' => 'medium',
+      ),
+      'operations' => array(
+        'description' => t('A serialized array of operations, one operation specification consisting of class name and type options of the operation plus custom properties assigned by third party modules.'),
+        'type' => 'text',
+        'size' => 'medium',
+      ),
+      'sources' => array(
+        'description' => t('A serialized array of target-input-to-source-output mappings.'),
+        'type' => 'text',
+        'size' => 'normal',
+      ),
+    ),
+    'primary key' => array('pipeline_id'),
+  );
+  return $schema;
+}
+
+/**
+ * Implementation of hook_install().
+ */
+function transformations_install() {
+  drupal_install_schema('transformations');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function transformations_uninstall() {
+  drupal_uninstall_schema('transformations');
+}

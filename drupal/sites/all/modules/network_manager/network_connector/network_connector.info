@@ -1,0 +1,16 @@
+; $Id: network_connector.info
+name = "Network Connector"
+description = "Helper module to hook a site into the network for use with Network Manager"
+package = "Infrastructure"
+core = 6.x
+
+; Information added by btopro
+version = "6.x-1.0"
+core = "6.x"
+project = "network_connector"
+; Information added by drupal.org packaging script on 2009-09-09
+version = "6.x-1.2"
+core = "6.x"
+project = "network_manager"
+datestamp = "1252526154"
+

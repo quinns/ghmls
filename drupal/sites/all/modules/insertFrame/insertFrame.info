@@ -1,0 +1,18 @@
+name = insertFrame
+description = A filter that includes iFrame in a node
+package = "Input filters"
+dependencies[] = filter
+core=6.x
+
+; Information added by drupal.org packaging script on 2008-01-11
+version = "6.x-1.9a"
+project = "insertFrame"
+datestamp = "1200009981"
+
+
+; Information added by drupal.org packaging script on 2009-08-25
+version = "6.x-1.10"
+core = "6.x"
+project = "insertFrame"
+datestamp = "1251227538"
+

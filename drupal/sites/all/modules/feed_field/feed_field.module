@@ -1,0 +1,533 @@
+<?php
+// $Id: feed_field.module,v 1.2 2009/04/27 06:20:55 primerg Exp $
+
+/**
+ * @file
+ * Defines a field type for referencing an Amazon product.
+ */
+
+/**
+ * Implementation of hook_theme().
+ */
+function feed_field_theme() {
+  return array(
+    'feed_field_text' => array(
+      'arguments' => array('element'),
+    ),
+    'feed_field_formatter_default' => array(
+      'arguments' => array('element'),
+    ),
+    'feed_field_formatter_teaser' => array(
+      'arguments' => array('element'),
+    ),
+    'feed_field_formatter_full' => array(
+      'arguments' => array('element'),
+    ),
+  );
+}
+
+/**
+ * Implementation of hook_field_info().
+ *
+ * Here we indicate that the content module will use its default
+ * handling for the view of this field.
+ *
+ * Callbacks can be omitted if default handing is used.
+ * They're included here just so this module can be used
+ * as an example for custom modules that might do things
+ * differently.
+ */
+function feed_field_field_info() {
+  return array(
+    'feed_field' => array(
+      'label' => t('Feed item'),
+      'description' => t('Store feed url'),
+    ),
+  );
+}
+
+/**
+ * Implementation of hook_field_settings().
+ */
+function feed_field_field_settings($op, $field) {
+  switch ($op) {
+    case 'database columns':
+      $columns['feed_field_title'] = array('type' => 'varchar', 'length' => 255, 'not null' => FALSE);
+      $columns['feed_field_url'] = array('type' => 'varchar', 'length' => 255, 'not null' => FALSE);
+      $columns['feed_field_display'] = array('type' => 'int', 'not null' => FALSE);
+      $columns['feed_field_freq'] = array('type' => 'int', 'not null' => FALSE);
+      $columns['feed_field_excerpt'] = array('type' => 'varchar', 'not null' => FALSE, 'length' => 50);
+      $columns['feed_field_update'] = array('type' => 'int', 'not null' => FALSE);
+      return $columns;
+  }
+}
+
+/**
+ * Implementation of hook_field().
+ */
+function feed_field_field($op, &$node, $field, &$items, $teaser, $page) {
+  switch ($op) {
+    case 'validate': 
+      foreach ($items as $delta => $item) {
+        $url = $item['feed_field_url'];
+        $display = (int)$item['feed_field_display'];
+        if (empty($url)) continue;
+        if (!valid_url($url, TRUE)) {
+          form_set_error($field['field_name'] .']['. $delta .'][feed_field_url', 'Invalid Feed URL');
+        }
+        
+        if (empty($display)) {
+          form_set_error($field['field_name'] .']['. $delta .'][feed_field_display', 'Number of headlines to be displayed in is required.');
+        }
+      }
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_content_is_empty().
+ */
+function feed_field_content_is_empty($item, $field) {
+  if (empty($item['feed_field_url'])) {
+    return TRUE;
+  }
+  return FALSE;
+}
+
+/**
+ * Implementation of hook_field_formatter_info().
+ */
+function feed_field_field_formatter_info() {
+  return array(
+    'default' => array(
+      'label' => t('Title only'),
+      'field types' => array('feed_field'),
+      'multiple values' => CONTENT_HANDLE_CORE,
+    ),
+    'teaser' => array(
+      'label' => t('Title and Teaser'),
+      'field types' => array('feed_field'),
+      'multiple values' => CONTENT_HANDLE_CORE,
+    ),
+    'full' => array(
+      'label' => t('Title with full content'),
+      'field types' => array('feed_field'),
+      'multiple values' => CONTENT_HANDLE_CORE,
+    ),
+  );
+}
+
+function _feed_field_content($nid, $item, &$settings) {
+  // search db
+  $settings = db_fetch_array(db_query("SELECT id, modified FROM {feed_field_settings} AS ffs WHERE url='%s' AND nid=%d AND delta=%d", $item['feed_field_url'], $nid, $item['#delta']));
+  if (!empty($settings)) {
+    $last_update = $settings['modified'];
+    if ($last_update - time() > $item['feed_field_freq']) {
+      _feed_field_refresh_items($settings['id'], $item);
+    }
+  } else {
+    $last_update = time();
+    db_query("INSERT INTO {feed_field_settings} SET url='%s', nid=%d, modified='%s', delta=%d", $item['feed_field_url'], $nid, $last_update, $item['#delta']);
+    $settings['id'] = db_last_insert_id('feed_field_settings', 'id');
+    $settings['nid'] = $nid;
+    $settings['url'] = $item['feed_field_url'];
+    _feed_field_refresh_items($settings['id'], $item);
+  }
+  
+  $res = db_query("SELECT * FROM {feed_field_items} WHERE ff_id=%d ORDER BY timestamp DESC", $settings['id']);
+  $data = array();
+  while ($row = db_fetch_array($res)) {
+    $data[] = $row;
+  }
+  return $data;
+}
+
+/**
+ */
+function theme_feed_field_formatter_teaser($element) {
+  $nid = arg(1);
+  $item = $element['#item']; 
+  $item['nid'] = $nid;
+  $settings = array();
+  
+  $data = _feed_field_content($nid, $item, $settings);
+  
+  $out = '';
+  $cnt=0;
+  $out .= '<h2>' . $item['feed_field_title'] . '</h2>';
+  foreach ($data as $row) {
+    $out .= '<div class="feed-wrapper">';
+  	$out .= '<div class="feed-title">'.l($row['title'], $row['link']).'</div>';
+  	$out .= '<div class="feed-content">'.substr(strip_tags($row['description'], array('br')), 0, 100).'</div>';
+  	$out .= '</div>';
+  }
+  
+  return $out;
+}
+
+function theme_feed_field_formatter_full($element) {
+  $nid = arg(1);
+  $item = $element['#item']; 
+  $item['nid'] = $nid;
+  $settings = array();
+  
+  $data = _feed_field_content($nid, $item, $settings);
+  
+  $out = '';
+  $cnt=0;
+  $out .= '<h2>' . $item['feed_field_title'] . '</h2>';
+  foreach ($data as $row) {
+    $out .= '<div class="feed-wrapper">';
+  	$out .= '<div class="feed-title">'.l($row['title'], $row['link']).'</div>';
+  	$out .= '<div class="feed-content">'.$row['description'].'</div>';
+  	$out .= '</div>';
+  }
+  
+  return $out;
+}
+
+function theme_feed_field_formatter_default($element) {
+  $nid = arg(1);
+  $item = $element['#item']; 
+  $item['nid'] = $nid;
+  $settings = array();
+  
+  $data = _feed_field_content($nid, $item, $settings);
+  
+  $out = '';
+  $cnt=0;
+  $out .= '<h2>' . $item['feed_field_title'] . '</h2>';
+  foreach ($data as $row) {
+    $out .= '<div class="feed-wrapper">';
+  	$out .= '<div class="feed-title">'.l($row['title'], $row['link']).'</div>';
+  	
+  	if (!empty($item['feed_field_excerpt'])) {
+  	  switch ($item['feed_field_excerpt']) {
+  	    case 'truncate':
+  	      $out .= '<div class="feed-content">'.substr(strip_tags($row['description'], array('br')), 0, 100).'</div>';
+  	      break;
+  	    case 'all':  
+  	      $out .= '<div class="feed-content">'.$row['description'].'</div>';
+  	      break;
+  	  }
+  	}
+  	
+  	$out .= '</div>';
+  }
+  
+  return $out;
+}
+
+function _feed_field_refresh_items($ff_id, $item) {
+  db_query("DELETE FROM {feed_field_items} WHERE ff_id=%d", $ff_id);
+  
+  // Generate one
+  $result = drupal_http_request($item['feed_field_url']);
+  if ($result->error) return false;
+  
+  $info = array(
+    'parenturl' => $item['feed_field_url'],
+    'nid' => $item['nid'],
+    'max' => $item['feed_field_display'],
+    'ff_id' => $ff_id,
+  );
+  
+  $posts = _feed_field_parse_feed($result->data, $info);
+  _feed_field_save_parsed_feed($posts, $info);
+}
+
+/**
+ * Implementation of hook_widget_info().
+ *
+ * We need custom handling of multiple values for the feed_field_text
+ * widget because we need to combine them into a options list rather
+ * than display multiple elements.
+ *
+ * We will use the content module's default handling for default value.
+ *
+ * Callbacks can be omitted if default handing is used.
+ * They're included here just so this module can be used
+ * as an example for custom modules that might do things
+ * differently.
+ */
+function feed_field_widget_info() {
+  return array(
+    'feed_field_text' => array(
+      'label' => t('Feed item'),
+      'field types' => array('feed_field'),
+      'multiple values' => CONTENT_HANDLE_CORE,
+    ),
+  );
+}
+
+/**
+ * Implementation of FAPI hook_elements().
+ *
+ * Any FAPI callbacks needed for individual widgets can be declared here,
+ * and the element will be passed to those callbacks for processing.
+ *
+ * Drupal will automatically theme the element using a theme with
+ * the same name as the hook_elements key.
+ */
+function feed_field_elements() {
+  return array(
+    'feed_field_text' => array(
+      '#input' => TRUE,
+      '#process' => array('feed_field_text_process'),
+    ),
+  );
+}
+
+/**
+ * Implementation of hook_widget().
+ *
+ * Attach a single form element to the form. It will be built out and
+ * validated in the callback(s) listed in hook_elements. We build it
+ * out in the callbacks rather than here in hook_widget so it can be
+ * plugged into any module that can provide it with valid
+ * $field information.
+ *
+ * Content module will set the weight, field name and delta values
+ * for each form element. This is a change from earlier CCK versions
+ * where the widget managed its own multiple values.
+ *
+ * If there are multiple values for this field, the content module will
+ * call this function as many times as needed.
+ *
+ * @param $form
+ *   the entire form array, $form['#node'] holds node information
+ * @param $form_state
+ *   the form_state, $form_state['values'][$field['field_name']]
+ *   holds the field's form values.
+ * @param $field
+ *   the field array
+ * @param $items
+ *   array of default values for this field
+ * @param $delta
+ *   the order of this item in the array of subelements (0, 1, 2, etc)
+ *
+ * @return
+ *   the form item for a single element for this field
+ */
+function feed_field_widget(&$form, &$form_state, $field, $items, $delta = 0) {
+  $element = array(
+    '#type' => $field['widget']['type'],
+    '#default_value' => isset($items[$delta]) ? $items[$delta] : '',
+  );
+  return $element;
+}
+
+/**
+ * Process an individual element.
+ *
+ * Build the form element. When creating a form using FAPI #process,
+ * note that $element['#value'] is already set.
+ *
+ * The $fields array is in $form['#field_info'][$element['#field_name']].
+ */
+function feed_field_text_process($element, $edit, $form_state, $form) {
+  $field = $form['#field_info'][$element['#field_name']];
+  $delta = $element['#delta'];
+  
+  $field = $element['#columns'][0];
+  $element[$field] = array(
+    '#type' => 'textfield',
+    '#title' => 'Give your module a title. Titles can only be one line, so keep it short',
+    '#required' => $element['#required'],
+    '#default_value' => isset($element['#value'][$field]) ? $element['#value'][$field] : NULL,
+  );
+  
+  $field = $element['#columns'][1];
+  $element[$field] = array(
+    '#type' => 'textfield',
+    '#title' => 'What URL would you like to pull RSS from? ',
+    '#required' => $element['#required'],
+    '#default_value' => isset($element['#value'][$field]) ? $element['#value'][$field] : NULL,
+  );
+  
+  $field = $element['#columns'][2];
+  $element[$field] = array(
+    '#type' => 'textfield',
+    '#title' => 'How many headlines would you like to show?',
+    '#default_value' => isset($element['#value'][$field]) ? $element['#value'][$field] : NULL,
+  );
+  
+  $period[''] = 'never';
+  $period += drupal_map_assoc(array(1800, 3600, 21600, 43200, 172800, 604800), 'format_interval');
+  $field = $element['#columns'][3];
+  $element[$field] = array(
+    '#type' => 'select',
+    '#title' => 'How frequently should the module be updated?',
+    '#options' => $period,
+    '#default_value' => isset($element['#value'][$field]) ? $element['#value'][$field] : NULL,
+  );
+  
+  $period = array('blank' => 'No excerpt', 'truncate' => 'excerpt (100 characters)', 'all' => 'everything available');
+  $field = $element['#columns'][4];
+  
+  $element[$field] = array(
+    '#type' => 'select',
+    '#title' => 'Would you like to include an excerpt from each link in the feed?',
+    '#options' => $period,
+    '#default_value' => isset($element['#value'][$field]) ? $element['#value'][$field] : NULL,
+  );
+  
+  return $element;
+}
+
+
+/**
+ * Validate an select element.
+ *
+ * Remove the wrapper layer and set the right element's value.
+ */
+function feed_field_text_validate($element, &$form_state) {
+  die('validate');
+}
+
+
+function theme_feed_field_text($element) {
+  $output = '<fieldset class="collapsible"><legend>RSS Feed</legend>'.$element['#children'].'</fieldset>';
+  return $output;
+}
+
+function _feed_field_parse_feed($data, $feed_info) {
+  global $channel, $image;
+  global $items, $image, $channel;
+  
+  if (empty($data)) return '';
+
+  // Unset the global variables before we use them:
+  unset($GLOBALS['element'], $GLOBALS['item'], $GLOBALS['tag']);
+  $items = array();
+  $image = array();
+  $channel = array();
+
+  // parse the data:
+  $xml_parser = drupal_xml_parser_create($data);
+  xml_set_element_handler($xml_parser, 'aggregator_element_start', 'aggregator_element_end');
+  xml_set_character_data_handler($xml_parser, 'aggregator_element_data');
+  
+  if (!xml_parse($xml_parser, $data, 1)) {
+    watchdog('aggregator', 'The feed from %site seems to be broken, due to an error "%error" on line %line.', array('%site' => $feed_info['parenturl'], '%error' => xml_error_string(xml_get_error_code($xml_parser)), '%line' => xml_get_current_line_number($xml_parser)), WATCHDOG_WARNING);
+    drupal_set_message(t('The feed from %site seems to be broken, because of error "%error" on line %line.', array('%site' => $feed_info['parenturl'], '%error' => xml_error_string(xml_get_error_code($xml_parser)), '%line' => xml_get_current_line_number($xml_parser))), 'error');
+    return 0;
+  }
+  xml_parser_free($xml_parser);
+
+  // Initialize variables.
+  $new_items = array();
+  $title = $link = $author = $description = $guid = NULL;
+  foreach ($items as $item) {
+    unset($title, $link, $author, $description, $guid);
+
+    // Prepare the item:
+    foreach ($item as $key => $value) {
+      $item[$key] = trim($value);
+    }
+
+    // Resolve the item's title. If no title is found, we use up to 40
+    // characters of the description ending at a word boundary but not
+    // splitting potential entities.
+    if (!empty($item['TITLE'])) {
+      $title = $item['TITLE'];
+    }
+    elseif (!empty($item['DESCRIPTION'])) {
+      $title = preg_replace('/^(.*)[^\w;&].*?$/', "\\1", truncate_utf8($item['DESCRIPTION'], 40));
+    }
+    else {
+      $title = '';
+    }
+
+    // Resolve the items link.
+    if (!empty($item['LINK'])) {
+      $link = $item['LINK'];
+    }
+    else {
+      $link = $feed_info['parenturl'];
+    }
+    $guid = isset($item['GUID']) ? $item['GUID'] : '';
+
+    // Atom feeds have a CONTENT and/or SUMMARY tag instead of a DESCRIPTION tag.
+    if (!empty($item['CONTENT:ENCODED'])) {
+      $item['DESCRIPTION'] = $item['CONTENT:ENCODED'];
+    }
+    else if (!empty($item['SUMMARY'])) {
+      $item['DESCRIPTION'] = $item['SUMMARY'];
+    }
+    else if (!empty($item['CONTENT'])) {
+      $item['DESCRIPTION'] = $item['CONTENT'];
+    }
+
+    // Try to resolve and parse the item's publication date. If no date is
+    // found, we use the current date instead.
+    $date = 'now';
+    foreach (array('PUBDATE', 'DC:DATE', 'DCTERMS:ISSUED', 'DCTERMS:CREATED', 'DCTERMS:MODIFIED', 'ISSUED', 'CREATED', 'MODIFIED', 'PUBLISHED', 'UPDATED') as $key) {
+      if (!empty($item[$key])) {
+        $date = $item[$key];
+        break;
+      }
+    }
+
+    $timestamp = strtotime($date); // As of PHP 5.1.0, strtotime returns FALSE on failure instead of -1.
+    if ($timestamp <= 0) {
+      $timestamp = aggregator_parse_w3cdtf($date); // Returns FALSE on failure
+      if (!$timestamp) {
+        $timestamp = time(); // better than nothing
+      }
+    }
+
+    if (empty($title)) continue;
+    
+    $item += array('AUTHOR' => '', 'DESCRIPTION' => '');
+    $new_items[] = array(
+      'timestamp' => $timestamp, 
+      'title' => $title, 
+      'link' => $link, 
+      'author' => $item['AUTHOR'], 
+      'description' => $item['DESCRIPTION'], 
+      'guid' => $guid);
+  }
+
+  return $new_items;  
+}
+
+function _feed_field_save_parsed_feed($items, $feed_info) {
+  $cnt = 0;
+  foreach ($items as $item) {
+    // Save this item. Try to avoid duplicate entries as much as possible. If
+    // we find a duplicate entry, we resolve it and pass along its ID is such
+    // that we can update it if needed.
+    $guid = $item['guid'];
+    if (!empty($guid)) {
+      $entry = db_fetch_object(db_query("SELECT id FROM {feed_field_items} WHERE ff_id=%d AND guid = '%s'", $feed_info['ff_id'], $guid));
+    }
+    else if ($link && $link != $feed['link'] && $link != $feed['url']) {
+      $entry = db_fetch_object(db_query("SELECT id FROM {feed_field_items} WHERE ff_id=%d AND link = '%s'", $feed_info['ff_id'], $item['link']));
+    }
+    else {
+      $entry = db_fetch_object(db_query("SELECT id FROM {feed_field_items} WHERE ff_id=%d AND title = '%s'", $feed_info['ff_id'], $item['title']));
+    }
+    
+    if (isset($entry->id)) {
+      continue;
+    }
+    
+    $item['ff_id'] = $feed_info['ff_id'];
+    _feed_field_save_item($item);
+    $cnt++;
+    
+    if ($cnt >= $feed_info['max']) break;
+  }
+}
+
+/**
+ * Add/edit/delete an aggregator item.
+ *
+ * @param $edit
+ *   An associative array describing the item to be added/edited/deleted.
+ */
+function _feed_field_save_item($edit) {
+  db_query("INSERT INTO {feed_field_items} (ff_id, title, link, author, description, timestamp, guid) VALUES (%d, '%s', '%s', '%s', '%s', %d, '%s')", $edit['ff_id'], $edit['title'], $edit['link'], $edit['author'], $edit['description'], $edit['timestamp'], $edit['guid']);
+  $edit['id'] = db_last_insert_id('feed_field_items', 'id');
+}

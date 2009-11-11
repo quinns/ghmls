@@ -1,0 +1,11 @@
+<?php
+// $Id: innovationnews.install,v 1.1.2.4 2008/08/12 20:38:22 JohnKarahalis Exp $
+
+/**
+ * Implementation of hook_uninstall().
+ *
+ * Unsets all variables associated with this module.
+ */
+function innovationnews_uninstall() {
+  variable_del('innovationnews_news_types');
+} // function innovationnews_uninstall

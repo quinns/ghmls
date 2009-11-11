@@ -1,0 +1,10 @@
+<?php
+
+function network_connector_install() {
+  variable_set('network_connector_path','http://'. $_SERVER["HTTP_HOST"] . base_path());
+}
+
+function network_connector_uninstall() {
+  variable_del('network_connector_path');
+}
+?>

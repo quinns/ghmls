@@ -1,0 +1,14 @@
+; $Id: transformations_xml.info,v 1.1 2009/06/23 21:44:31 jpetso Exp $
+name = XML Transformations
+description = Transformations for processing XML data.
+package = Transformations
+dependencies[] = transformations
+core = 6.x
+php = 5.2
+
+; Information added by drupal.org packaging script on 2009-07-15
+version = "6.x-1.0-beta1"
+core = "6.x"
+project = "transformations_xml"
+datestamp = "1247665675"
+

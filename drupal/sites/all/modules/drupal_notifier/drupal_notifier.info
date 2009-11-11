@@ -1,0 +1,11 @@
+; $Id: drupal_notifier.info,v 1.2 2009/04/11 20:49:06 gor Exp $
+name = "Drupal Notifier"
+description = "Module Drupal Notifier provides information on the status of installed and active modules for IPhone App Drupal Notifier."
+core = 6.x
+
+; Information added by drupal.org packaging script on 2009-09-17
+version = "6.x-1.2"
+core = "6.x"
+project = "drupal_notifier"
+datestamp = "1253229329"
+

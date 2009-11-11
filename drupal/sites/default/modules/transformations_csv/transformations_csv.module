@@ -1,0 +1,25 @@
+<?php
+// $Id: transformations_csv.module,v 1.3 2009/06/01 19:46:07 jpetso Exp $
+/**
+ * @file
+ * CSV Transformations -
+ * Transformations for processing CSV (Comma Separated Values) data.
+ *
+ * Copyright 2009 by Jakob Petsovits ("jpetso", http://drupal.org/user/56020)
+ */
+
+
+/**
+ * Implementation of hook_ctools_plugin_api().
+ */
+function transformations_csv_ctools_plugin_api($module, $api) {
+  if ($module == 'transformations' && $api == 'transformations') {
+    $api_version = 1;
+    /*return array(
+      $api_version =>*/ return array(
+        'path' => drupal_get_path('module', 'transformations_csv') . '/transformations',
+        'version' => $api_version,
+    //  ),
+    );
+  }
+}

@@ -1,0 +1,792 @@
+<?php
+// $Id: xmltokml.module,v 1.1.2.2 2008/09/10 02:35:19 JohnKarahalis Exp $
+
+/**
+ * Implementation of hook_help().
+ */
+function xmltokml_help($path, $arg) {
+  $output = '';
+  switch ($path) {
+    case'admin/help#xmltokml':
+      $settings_link = l('settings page', 'admin/settings/xmltokml');
+
+      $output = '<p>' . t('XML to KML allows you to generate KML data from ' .
+                'existing XML documents such as RSS feeds. This KML data can ' .
+                'be downloaded by visitors and opened in Google Earth&#153;, ' .
+                'allowing your site\'s news to be displayed geographically.') .
+                '</p>';
+      $output .= '<p>' . t('To begin setting up XML to KML, visit the XML to ' . 
+                 'KML ') . $settings_link .
+                 t('. Here, you will be able to provide the address of an ' .
+                 'XML file (an RSS feed or any other XML data). After the ' .
+                 'file is  loaded and analyzed, you will be able to specify ' .
+                 'which XML elements contain important data. When you have ' .
+                 'chosen your settings, click the "Save" button. You will be ' .
+                 'brought to a page which lists the location of the input ' .
+                 'XML file and the loation of the output KML file. The KML ' .
+                 'file will be dynamically-generated based on the data which ' .
+                 'is in the input XML file when the KML file is loaded.') .
+                 '</p>';
+      $output .= '<p> ' .t('Visitors will be able to download this KML file ' .
+                 'by either direct URL or the "KML Output" link provided in ' .
+                 'the Navigation menu. This file can be opened in Google ' .
+                 'Earth&#153; to display your site\'s news geographically.') .
+                 '</p>';
+      $output .= '<p>' . t('To edit your data settings, navigate again to ' .
+                 'the XML to KML') . $settings_link .
+                 t(' and click the "Edit" button.') . '</p>';
+      $output .= '<p>' . t('To specify a new input XML file, navigate to the ' .
+                 ' XML to KML') . $settings_link .
+                 t(' and click the "Delete" button. You will then be able to ' .
+                 'start over, choosing a new XML file and new data settings.') .
+                 '</p>';
+  }
+  return $output;
+} // function xmltokml_help
+
+/**
+ * Implementation of hook_perm().
+ */
+function xmltokml_perm() {
+  return array('administer xmltokml settings', 'access xmltokml KML file');
+} // function xmltokml_perm
+
+/**
+ * Implementation of hook_menu().
+ */
+function xmltokml_menu() {
+  $items = array();
+
+  $items['admin/settings/xmltokml'] = array(
+    'title' => 'XML to KML',
+    'description' => 'Define which XML file will be used to generate a KML file.',
+    'page callback' => 'xmltokml_settings',
+    'access arguments' => array('administer xmltokml settings'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['admin/settings/xmltokml/edit'] = array(
+    'title' => 'XML to KML: Data Settings',
+    'description' => 'Define which XML elements will be used in the KML file',
+    'page callback' => 'xmltokml_data_settings',
+    'access arguments' => array('administer xmltokml settings'),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['xmltokml.kml'] = array(
+    'title' => 'KML Output',
+    'description' => 'The KML file which is dynamically generated from the input XML data.',
+    'page callback' => 'xmltokml_kml',
+    'access arguments' => array('access xmltokml KML file'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+} // function xmltokml_menu
+
+/**
+ * The page callback for /admin/settings/xmltokml
+ *
+ * Display either an input form or details regarding the current item.
+ */
+function xmltokml_settings() {
+  // If the variable xmltokml_created is set, delete it as it is no longer used.
+  $created = variable_get('xmltokml_created', '');
+  if (!empty($created)) {
+    variable_del('xmltokml_created');
+  }
+
+  // Add stylesheet.
+  $path_to_xmltokml = drupal_get_path('module', 'xmltokml');
+  drupal_add_css($path_to_xmltokml . '/xmltokml.css');
+
+  $output = '';
+
+  $xml_location = variable_get('xmltokml_file', '');
+
+  if (empty($xml_location)) {
+    $output = drupal_get_form('xmltokml_file_form');
+  }
+  else {
+    $base_address = $GLOBALS['base_url'];
+    $base_address .= (variable_get('clean_url', 0)) ? '/' : '/?q=';
+
+    $output_address = $base_address . 'xmltokml.kml';
+
+    $input_address = str_replace($base_address, '', $xml_location);
+    $input_address = $base_address . $input_address;
+
+    $output .= '<table>';
+    $output .= '  <tr>';
+    $output .= '   <th>' . t('Input XML File') . '</th>';
+    $output .= '   <th>' . t('Output KML File') . '</th>';
+    $output .= '  </tr>';
+    $output .= '  <tr>';
+    $output .= '    <td>' . l($input_address, $input_address) . '</td>';
+    $output .= '    <td>' . l($output_address, $output_address) . '</td>';
+    $output .= '  </tr>';
+    $output .= '</table>';
+    $output .= drupal_get_form('xmltokml_edit_item_form');
+    $output .= drupal_get_form('xmltokml_delete_item_form');
+  }
+
+  return $output;
+} // function xmltokml_settings
+
+/**
+ * Implementation of hook_form().
+ *
+ * Allow the user to specify the location of an XML document.
+ */
+function xmltokml_file_form(&$node) {
+  $form = array();
+
+  $form['xmltokml_file'] = array(
+    '#type' => 'textfield',
+    '#title' => t('XML File Location'),
+    '#description' => t('The location of an existing XML document. May be absolute or relative to your Drupal path.'),
+    '#required' => TRUE,
+   );
+
+  $form['submit'] = array('#type' => 'submit', '#value' => 'Submit');
+
+  return $form;
+} // function xmltokml_file_form
+
+/**
+ * Implementation of hook_form_submit().
+ *
+ * Save the location of the XML document and redirect to the /xmltokml/edit
+ * page.
+ */
+function xmltokml_file_form_submit($form, &$form_state) {
+  variable_set('xmltokml_file', $form_state['values']['xmltokml_file']);
+
+  $options = array('absolute' => TRUE);
+  $form_state['redirect'] = url('admin/settings/xmltokml/edit', $options);
+} // function xmltokml_file_form_submit
+
+/**
+ * Implementation of hook_form().
+ *
+ * Provide one button which will redirect to the admin/settings/xmltokml/edit
+ * page.
+ */
+function xmltokml_edit_item_form(&$node) {
+  $form = array();
+
+  $form['xmltokml_edit_item'] = array(
+    '#type' => 'submit',
+    '#value' => t('Edit'),
+  );
+
+  return $form;
+} // function xmltokml_edit_item_form()
+
+/**
+ * Implementation of hook_form_submit().
+ *
+ * Redirect to the admin/settings/xmltokml/edit page.
+ */
+function xmltokml_edit_item_form_submit($form, &$form_state) {
+  $options = array('absolute' => TRUE);
+  $form_state['redirect'] = url('admin/settings/xmltokml/edit', $options);
+} // function xmltokml_edit_item_form_submit
+
+/**
+ * Implementation of hook_form().
+ *
+ * Provide one button which will delete the 'xmltokml_file' variable.
+ */
+function xmltokml_delete_item_form(&$node) {
+  $form = array();
+
+  $form['xmltokml_delete_item'] = array(
+    '#type' => 'submit',
+    '#value' => t('Delete'),
+  );
+
+  return $form;
+} // function xmltokml_edit_item_form()
+
+/**
+ * Implementation of hook_form_submit().
+ *
+ * Delete all variables and redirect to admin/settings/xmltokml.
+ */
+function xmltokml_delete_item_form_submit($form, &$form_state) {
+  variable_del('xmltokml_file');
+  variable_del('xmltokml_title');
+  variable_del('xmltokml_author');
+  variable_del('xmltokml_body');
+  variable_del('xmltokml_location');
+  variable_del('xmltokml_image');
+
+  drupal_set_message('The item has been deleted.');
+} // function xmltokml_edit_item_form_submit
+
+/**
+ * Display a form which will allow the user to set data types to XML elements.
+ *
+ * @return
+ *   The form, if the XML location is valid.
+ */
+function xmltokml_data_settings() {
+  $output = '';
+
+  $xml_location = variable_get('xmltokml_file', '');
+
+  // If the user is using < PHP 5, display an error.
+  if (!function_exists('simplexml_load_file')) {
+    drupal_set_message('XML to KML requires PHP 5.', 'error');
+    drupal_goto('admin/settings/xmltokml');
+  }
+
+  // If the file cannot be loaded, display an error.
+  if (!@$xml = simplexml_load_file($xml_location)) {
+    variable_del('xmltokml_file');
+    $message = t('The XML file could not be loaded. Check that the location ' .
+                 'is correct and the markup is valid. If this problem ' .
+                 'persists, contact your server administrator.');
+    drupal_set_message($message, 'error');
+    drupal_goto('admin/settings/xmltokml');
+  }
+
+  // Get the form.
+  $xml_structure = array_unique(_xmltokml_xml_structure($xml));
+
+  $output .= drupal_get_form('xmltokml_specify_data_form', $xml_structure);
+
+  return $output;
+} // function xmltokml_data_settings
+
+/**
+ * Implementation of hook_form().
+ *
+ * Display a form which will allow a user to define which XML elements contain
+ * important data, such as the title and body of the story.
+ */
+function xmltokml_specify_data_form(&$node, $xml_structure) {
+  // Add stylesheet.
+  $path_to_xmltokml = drupal_get_path('module', 'xmltokml');
+  drupal_add_css($path_to_xmltokml . '/xmltokml.css');
+
+  $orphaned_elements = _xmltokml_get_orphaned_elements($xml_structure);
+
+  if (count($orphaned_elements) > 0) {
+    drupal_set_message('Important data resides in XML elements which do not ' .
+                       'currently exist. If the XML input file is an RSS ' .
+                       'feed, the feed may be empty. Try adding to the RSS ' .
+                       'feed, or delete this item to reset settings.',
+                       'warning');
+  }
+
+  $form = array();
+
+  $help_text = '<p>' . t('Choose which XML elements contain important data. ' .
+                         'The data in these elements will be used to ' .
+                         'generate the output KML file.') . '</p>';
+  $help_text .= '<p><strong>' . t('Data types') . '</strong><br />';
+  $help_text .= t('Title* - The title of a node') . '<br />';
+  $help_text .= t('Author - The author of this node') . '<br />';
+  $help_text .= t('Body* - The body of this node (plaintext or HTML entities)') . '<br />';
+  $help_text .= t('Location* - The location which this node relates to in the format ');
+  $help_text .= '<em>' . t('lat, lon') . '</em>';
+  $help_text .= t(' (eg. 45.1237717383266, -123.11376124620438)') . '<br />';
+  $help_text .= t('Image - The absolute URL of an image which is associated ' .
+                  'with this node') . '</p>';
+  $help_text .= '<p>' . t('* Required') . '</p>';
+
+  $form['xmltokml_help'] = array(
+    '#type' => 'markup',
+    '#value' => $help_text,
+  );
+
+  $form['xmltokml_data'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Data Settings'),
+  );
+
+  // All all element select boxes to the current form.
+  $form['xmltokml_data'] = _xmltokml_element_select_items($xml_structure);
+
+  // Add markup which will allow the "Save" button to be displayed below the
+  // form.
+  $form['xmltokml_clear'] = array(
+    '#value' => '<div style="clear: both;"></div>',
+  );
+
+  $form['submit'] = array('#type' => 'submit', '#value' => 'Save');    
+
+  return $form;
+} // function xmltokml_specify_data_form
+
+/**
+ * Define a form item for each XML element.
+ *
+ * @param $xml_structure
+ *   The XML structure build by _xmltokml_xml_structure().
+ * @return
+ *   An array of form items, one for each XML element.
+ */
+function _xmltokml_element_select_items($xml_structure) {
+  $form = array();
+  $parents = array(); // Parent elements will be pushed/popped from this array.
+
+  // Options for XML elements.
+  $options = array(
+    'none' => t('-None-'),
+    'title' => t('Title'),
+    'author' => t('Author'),
+    'body' => t('Body'),
+    'location' => t('Location'),
+    'image' => t('Image'),
+  );
+
+  $disabled = array('disabled' => 'disabled');
+
+  $n = 0;
+  // Add a select item for each unique element in the XML.
+  for ($i = 0; $i < count($xml_structure); $i++) {
+    $even_odd = ($n % 2 == 0) ? 'even' : 'odd';
+    $id = $xml_structure[$i]; // ex: parent-child-grandchild
+
+    // Interim bug fix workaround. Last element is ignored.
+    if (empty($id)) {
+      break;
+    }
+
+    $name = _xmltokml_get_element_name($id); // ex: grandchild
+    $prefix = ($id == $name) ? $id : str_replace($name, '', $id); // ex: parent-child-
+    $display = htmlentities("<$name>"); // ex: <grandchild>
+    $indent = _xmltokml_get_element_indentation($id);
+
+    // If this element does not have children, display as normal.
+    // Otherwise, disable the select box for this item.
+    if (!strstr($xml_structure[$i + 1], "$id-")) {
+      // Determine the default value for this dropdown.
+      foreach (array_keys($options) as $key) {
+        if (!empty($id) && variable_get("xmltokml_$key", '') == $id) {
+          $default = $key;
+        }
+      }
+      $element_select = _xmltokml_get_element_select($id, $options, $default, NULL, $even_odd, $display, $indent);
+    }
+    else {
+      array_push($parents, $id);
+      $element_select = _xmltokml_get_element_select($id, $options, NULL, $disabled, $even_odd, $display, $indent);
+    }
+
+    $form = array_merge($form, $element_select);
+
+    // If this element is the last child of a parent, close the parent.
+    while ((count($parents) > 0 && !strstr($xml_structure[$i + 1], "$prefix"))
+        && !strstr($xml_structure[$i + 1], "$id-")) {
+      $n++;
+
+      $even_odd = ($n % 2 == 0) ? 'even' : 'odd';
+
+      $close_id = array_pop($parents);
+      $close_name = _xmltokml_get_element_name($close_id);
+      $close_indent = _xmltokml_get_element_indentation($close_id);
+      $close_display = htmlentities("</$close_name>");
+
+      $close_select = _xmltokml_get_element_select($close_id . '_close', $options, NULL,
+                                                   $disabled, $even_odd, $close_display, $close_indent);
+
+      $form = array_merge($form, $close_select);
+    }
+
+    $n++;
+    unset($default);
+  } // for loop
+
+  // Close any parents remaining in the $parents array.
+  for ($i = 0; $i < count($parents); $i++) {
+    $even_odd = ($i + $n % 2 == 0) ? 'even' : 'odd';    
+    $close_id = array_pop($parents);
+    $close_name = _xmltokml_get_element_name($close_id);
+    $close_indent = _xmltokml_get_element_indentation($close_id);
+    $close_display = htmlentities("</$close_name>");
+
+    $close_select = _xmltokml_get_element_select($close_id . '_close', $options, NULL,
+                                                 $disabled, $even_odd, $close_display, $close_indent);
+
+    $form = array_merge($form, $close_select);
+  }
+
+  return $form;
+} // function _xmltokml_element_form_item
+
+/**
+ * Create the select form item for one XML element.
+ *
+ * @param $id
+ *   The ID of the XML element.
+ * @param $options
+ *   The options which this form item should use.
+ * @param $default
+ *   The default value which this form item should use.
+ * @param $attributes
+ *   The attributes which this form item should use.
+ * @param $even_odd
+ *   Either 'even' or 'odd', depending on the number of the row.
+ * @param $display
+ *   The display of this element. Usually '<element>' or '</element>'.
+ * @param $indent
+ *   The level of indentation for this element.
+ */
+function _xmltokml_get_element_select($id, $options, $default = 'none', $attributes = array(), $even_odd, $display, $indent) {
+  $form = array();
+
+  $form["xmltokml_$id"] = array(
+    '#type' => 'select',
+    '#options' => $options,
+    '#default_value' => $default,
+    '#attributes' => $attributes,
+    '#prefix' => "<div class=\"xmltokml_row $even_odd\">",
+    '#suffix' => _xmltokml_get_element_markup($display, $indent),
+  );
+  return $form;
+} // function _xmltokml_get_element_select
+
+/**
+ * Return the HTML which will display an XML element.
+ *
+ * @param $element
+ *   The element which should be displayed.
+ * @param $indent
+ *   The proper indentation of this element.
+ * @return
+ *   The HTML necessary to display this element.
+ */
+function _xmltokml_get_element_markup($element, $indent) {
+  $markup = '<div class="xmltokml_element" ' .
+            'style="padding-left: ' . (($indent * 20) + 10) . 'px">' .
+            $element . '</div></div>';
+
+  return $markup;
+} // function _xmltokml_get_element_markup
+
+/**
+ * Get an element's name from it's id.
+ *
+ * @param $id
+ *   The element id.
+ * @return
+ *   The element name.
+ */
+function _xmltokml_get_element_name($id) {
+  // If the id has hyphens, truncate it and find the level of indentation.
+  if ($last_hyphen = strrpos($id, '-')) {
+    $name = substr($id, $last_hyphen + 1);
+  }
+  else {
+    $name = $id;
+  }
+
+  return $name;
+} // function _xmltokml_get_element_name
+
+/**
+ * Get an element's indentation from its id.
+ *
+ * @param $id
+ *   The element's id.
+ * @return
+ *   The element's level of indentation.
+ */
+function _xmltokml_get_element_indentation($id) {
+  return substr_count($id, '-');
+} // function _xmltokml_get_element_indentation
+
+/**
+ * Implementation of hook_validate().
+ */
+function xmltokml_specify_data_form_validate($form, &$form_state) {
+  // Remove all array elements with value 'none' or 'Save', or key with '_close'.
+  foreach ($form_state['values'] as $key => $value) {
+    if (empty($value) || $value == 'none' || $value == 'Save' || substr($key, -6) == '_close') {
+      unset($form_state['values'][$key]);
+    }
+
+  }
+
+  // If multiple XML elements have been set to one data type, display an error.
+  $values_unique = array_unique($form_state['values']);
+  if (count($values_unique) < count($form_state['values'])) {
+    $message = t('You cannot set multiple elements to the same data type.');
+    form_set_error('xmltokml_data', $message);
+  }
+
+  // Display errors for any required data types that have not been assigned to
+  // an XML element.
+  $required = array();
+  if (!in_array('title', $form_state['values'])) {
+    $required[] = 'Title';
+  }
+  if (!in_array('body', $form_state['values'])) {
+    $required[] = 'Body';
+  }
+  if (!in_array('location', $form_state['values'])) {
+    $required[] = 'Location';
+  }
+
+  if (count($required) > 0) {
+    $error = t('The following data types must be assigned to an XML element: ' . 
+             '<br />' . implode(', ', $required));
+    form_set_error('xmltokml_data', $error);
+  }
+
+} // function xmltokml_specify_data_form_validate
+
+/**
+ * Implementation of hook_form_submit().
+ *
+ * Set variables based on user input.
+ */
+function xmltokml_specify_data_form_submit($form, &$form_state) {
+  $title = str_replace("xmltokml_", '', array_search('title', $form_state['values']));
+  $author = str_replace("xmltokml_", '', array_search('author', $form_state['values']));
+  $body = str_replace("xmltokml_", '', array_search('body', $form_state['values']));
+  $location = str_replace("xmltokml_", '', array_search('location', $form_state['values']));
+  $image = str_replace("xmltokml_", '', array_search('image', $form_state['values']));
+
+  variable_set('xmltokml_title', $title);
+  variable_set('xmltokml_author', $author);
+  variable_set('xmltokml_body', $body);
+  variable_set('xmltokml_location', $location);
+  variable_set('xmltokml_image', $image);
+
+  $message = t('The item has been saved.');
+  drupal_set_message($message);
+
+  $options = array('absolute' => TRUE);
+  $form_state['redirect'] = url('admin/settings/xmltokml', $options);
+} // function xmltokml_specify_data_form_submit
+
+/**
+ * Try to generate a KML file. If one cannot be generated, display an error.
+ */
+function xmltokml_kml() {
+  $file = variable_get('xmltokml_file', '');
+  $title = variable_get('xmltokml_title', '');
+  $body = variable_get('xmltokml_body', '');
+  $location = variable_get('xmltokml_location', '');
+
+  $profile = variable_get('install_profile', '');
+
+  // Either display an error or generate a KML file.
+  if (!function_exists('simplexml_load_file')) {
+    drupal_set_message('A KML file could not be generated. XML to KML ' .
+                       'requires PHP 5.', 'error');
+    return '';
+  }
+  elseif (empty($file)) {
+    drupal_set_message('A KML file could not be generated. You must first ' .
+                       l('specify an input XML file', 'admin/settings/xmltokml') . '.', 'error');
+    return '';
+  }
+  elseif (empty($title) || empty($body) || empty($location)) {
+    drupal_set_message('A KML file could not be generated. You must first ' .
+                       l('specify your data settings', 'admin/settings/xmltokml/edit') . '.', 'error');
+    return '';
+  }
+  elseif ($profile == 'innovationnewsprofile' && !@$xml = simplexml_load_file($file)) {
+    $message = t('The XML file could not be loaded. Contact your server administrator.');
+    drupal_set_message($message, 'error');
+    return '';
+  }
+  else {
+    _xmltokml_output_kml();
+  }
+} // function xmltokml_kml
+
+/**
+ * Generate the KML file from the selected settings.
+ */
+function _xmltokml_output_kml() {
+  header("content-type:application/vnd.google-earth.kml+xml");
+  require_once('includes/KMLmarkup.inc');
+
+  $kml = new xmltokml_KML_markup();
+  $xml = simplexml_load_file(variable_get('xmltokml_file', ''));
+
+  print $kml->xmltokml_KML_open();
+
+  // Get the XML paths to important data (format: parent-child-grandchild).
+  $title = variable_get('xmltokml_title', '');
+  $author = variable_get('xmltokml_author', '');
+  $body = variable_get('xmltokml_body', '');
+  $location = variable_get('xmltokml_location', '');
+  $image = variable_get('xmltokml_image', '');
+
+  // Determine the ancestor element(s) to which all other elements belong.
+  $elements = explode('-', $title);
+  $ancestry = $xml->$elements[0];
+
+  for ($i = 1; $i < count($elements) - 1; $i++) {
+    $ancestry = $ancestry->$elements[$i];
+  }
+
+  // For each parent element, create one placemark with that element's data.
+  foreach ($ancestry as $parent) {
+    $author_data = _xmltokml_get_data($parent, $author);
+    $image_data = _xmltokml_get_data($parent, $image);
+    $body_data = _xmltokml_get_data($parent, $body);
+    $title_data = _xmltokml_get_data($parent, $title);
+    $description_data = _xmltokml_build_description(htmlspecialchars_decode($body_data), $author_data, $image_data);
+    $lon_data = _xmltokml_get_lon(_xmltokml_get_data($parent, $location));
+    $lat_data = _xmltokml_get_lat(_xmltokml_get_data($parent, $location));
+
+    print $kml->xmltokml_KML_placemark($title_data, $description_data, $lon_data, $lat_data);
+  }
+
+  print $kml->xmltokml_KML_close();
+} // function _xmltokml_output_kml
+
+/**
+ * Analyze the structure of the XML recursively.
+ *
+ * This function returns a single-dimension array which describes the XML
+ * structure. The array is in the following format:
+ *
+ * Array
+ * (
+ *     [0] => parent
+ *     [1] => parent-child
+ *     [2] => parent-child_2
+ *     [3] => parent-child_2-grandchild
+ *     [...]
+ * )
+ *
+ * @param $xml
+ *   The XML object as formatted by SimpleXML. Or, a sub-object of that object.
+ * @param $parent
+ *   The parent of the highest ancestor in the XML object.
+ * @param $structure
+ *   The structure of the currently-known XML.
+ * @return
+ *   A single-dimension array describing the XML structure.
+ */
+function _xmltokml_xml_structure($xml, $parent = NULL, $structure = array()) {
+  foreach ($xml as $current => $child) {
+    $ancestors = ($parent) ? "$parent-$current" : $current;
+    $structure[] = $ancestors;
+
+    // If this child has children itself, analyze it recursively.
+    if (count($child) > 0) {
+        $structure = _xmltokml_xml_structure($child, $ancestors, $structure);
+    }
+  }
+
+  return $structure;
+} // function _xmltokml_xml_structure
+
+/**
+ * Build an array of elements which have been set as data containers, but now
+ * do not exist.
+ *
+ * For example:
+ *   User has previously specified that  <parent><child><title> as Title data.
+ *   Currently, the full XML structure is <parent><child></child></parent>
+ *   The returned array will contain the string 'parenth-child-title'
+ *
+ * @param $xml_structure
+ *   The array representation of the XML as it exists currently.
+ * @return
+ *   An array of elements which have disappeared.
+ */
+function _xmltokml_get_orphaned_elements($xml_structure) {
+  $orphaned_elements = array();
+
+  $title = variable_get('xmltokml_title', '');
+  $author = variable_get('xmltokml_author', '');
+  $body = variable_get('xmltokml_body', '');
+  $location = variable_get('xmltokml_location', '');
+  $image = variable_get('xmltokml_image', '');
+
+  if (!in_array($title, $xml_structure) && !empty($title)) {
+    $orphaned_elements[] = $title;
+  }
+  if (!in_array($author, $xml_structure) && !empty($author)) {
+    $orphaned_elements[] = $author;
+  }
+  if (!in_array($body, $xml_structure) && !empty($body)) {
+    $orphaned_elements[] = $body;
+  }
+  if (!in_array($location, $xml_structure) && !empty($location)) {
+    $orphaned_elements[] = $location;
+  }
+  if (!in_array($image, $xml_structure) && !empty($image)) {
+    $orphaned_elements[] = $image;
+  }
+
+  return $orphaned_elements;
+} // function _xmltokml_get_orphaned_elements
+
+/**
+ * Get data according to an XML path.
+ *
+ * @param $data
+ *   The parent data.
+ * @param $path
+ *   The path to the data.
+ * @return
+ *   The data.
+ */
+function _xmltokml_get_data($data, $path) {
+  if (empty($path)) {
+    return NULL;
+  }
+
+  $elements = explode('-', $path);
+
+  $parent_loc = count($elements) - 1;
+  $data = $data->$elements[$parent_loc];
+
+  return $data;
+} // function _xmltokml_variable_name  
+
+/**
+ * Get the longitude of coordinates.
+ *
+ * Expects the coordinates in the following format:
+ * 45.1237717383266, -123.11376124620438
+ */
+function _xmltokml_get_lon($loc) {
+  $lon = substr($loc, strpos($loc, ',') + 1);
+  $lon = str_replace(' ', '', $lon);
+
+  return $lon;
+}
+
+/**
+ * Get the latitude of coordinates.
+ *
+ * Expects the coordinates in the following format:
+ * -123.11376124620438,45.1237717383266
+ */
+function _xmltokml_get_lat($loc) {
+  $lat = substr($loc, 0, strpos($loc, ','));
+  $lat = str_replace(' ', '', $lat);
+
+  return $lat;
+}
+
+function _xmltokml_build_description($body, $author, $image) {
+  $desc .= "<![CDATA[";
+
+  if (strlen($author) != 0) {
+    $desc .= "<p>By " . $author . "</p><br />";
+  }
+
+  if (strlen($image) != 0) {
+    $desc .= '<img src="' . $image . '" /><br />';
+  }
+
+  $desc .= nl2br($body);
+  $desc .= "]]>";
+
+  return $desc;
+} // function _xmltokml_build_dexcription

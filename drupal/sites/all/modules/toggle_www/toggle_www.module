@@ -1,0 +1,99 @@
+<?php
+// $Id: toggle_www.module,v 1.4 2008/04/18 17:15:39 Gurpartap Exp $
+
+// Fire the toggle check.
+if (function_exists('toggle_www_redirect'))  {
+  toggle_www_redirect(variable_get('toggle_www_method', 0));
+}
+
+/**
+ * Implementation of hook_help().
+ */
+function toggle_www_help($path, $arg) {
+  switch ($path) {
+    case 'admin/modules#description':
+      return t('An easy, PHP header redirect based way to redirect incoming links from http://www.example.com to http://example.com or vice-versa.');
+  }
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function toggle_www_menu() {
+  $items = array();
+
+  $items['admin/settings/toggle_www'] = array(
+    'title' => t('Toggle WWW'),
+    'description' => t('Set the preferred URL style.'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('toggle_www_settings'),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+/**
+ * toggle_www redirect helper.
+ */
+function toggle_www_redirect($method = 0) {
+  if ($_SERVER['HTTP_HOST'] == 'localhost' || $method == 0) {
+  // do not redirect.
+    return;
+  }
+
+  if ($_SERVER['HTTPS'] == 'on' || $_SERVER['SERVER_PORT'] == 443) {
+    // Maintain a secure connection protocol.
+    $protocol = 'https';
+  }
+  else {
+    // Normal connection protocol.
+    $protocol = 'http';
+  }
+
+  if ($method == 1) {
+  // redirect from www.example.com to example.com.
+    if (!strstr($_SERVER['HTTP_HOST'], 'www.')) // if its already example.com, take no action
+      return;
+    // otherwise pass permanently moved information into header and redirect to example.com
+    header('HTTP/1.1 301 Moved Permanently');
+    header('Location: '. $protocol .'://' . substr($_SERVER['HTTP_HOST'], 4) . request_uri());
+    return;
+  }
+  elseif ($method == 2) {
+  // redirect from example.com to www.example.com.
+    if (strstr($_SERVER['HTTP_HOST'], 'www.')) // if its already www.example.com, take no action
+      return;
+    // otherwise pass permanently moved information into header and redirect to www.example.com
+    header('HTTP/1.1 301 Moved Permanently');
+    header('Location: '. $protocol .'://www.' . substr($_SERVER['HTTP_HOST'], 0) . request_uri());
+    return;
+  }
+}
+
+/**
+ * Toggle WWW settings form.
+ */
+function toggle_www_settings() {
+  $form = array();
+
+  $form['toggle_www_settings'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Basic configuration'),
+    '#collapsed' => TRUE,
+  );
+  $form['toggle_www_settings']['toggle_www_method'] = array(
+    '#type' => 'radios',
+    '#title' => t('Redirection criteria'),
+    '#options' => array(
+      t('Disabled - Take no action.'),
+      t('No "www" - Redirect from <em>www.example.com</em> to <em>example.com</em>'),
+      t('Always add "www" - Redirect from <em>example.com</em> to <em>www.example.com</em>')
+    ),
+    '#default_value' => variable_get('toggle_www_method', 0),
+  );
+  
+  return system_settings_form($form);
+}

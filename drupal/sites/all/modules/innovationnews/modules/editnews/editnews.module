@@ -1,0 +1,210 @@
+<?php
+// $Id: editnews.module,v 1.1.2.7 2008/09/10 02:28:18 JohnKarahalis Exp $
+
+/**
+ * Implementation of hook_help().
+ */
+function editnews_help($path, $arg) {
+  $output = '';
+  switch ($path) {
+    case 'admin/help#editnews':
+      $output = '<p>' . t('The Edit News module lists news by publish status, ' .
+                'making the process of story editing easier and more ' .
+                'intuitive.') . '</p>';
+      $output .= '<p>' . t('To access Edit News, use the "Edit News" link ' .
+                 'which was automatically added to the Navigation menu. ' .
+                 'By default, Edit News will display news which has not yet ' .
+                 'been published. If you wish, you can view other groupings ' .
+                 'of stories by using the provided filter at the top of the ' .
+                 'page.') . '</p>';
+      $output .= '<p>' . t('If there are any news stories which match the ' .
+                 'selected filter, the teasers of those stories will be ' .
+                 'displayed on the page along with basic story information ' .
+                 'an "Edit" link. To publish a story, click that story\'s ' .
+                 '"Edit" link. You will then be able to edit the story. ' .
+                 'When you are satisfied, expand the "Publishing Options" ' .
+                 'form of that story, and check ' .
+                 '"Published". Click the "Save" button to confirm your ' .
+                 'changes or the "Preview" button to preview any changes. If ' .
+                 'you would rather delete the story, you can simply click ' .
+                 'the "Delete" button.') . '</p>';
+      $output .= '<p>' . t('Please not that unless a user has the privelage ' .
+                 '"administer nodes" enabled, that user will not be able to ' .
+                 'edit the news stories which are displayed by Edit News.') .
+                 '</p>';
+      break;
+  }
+  return $output;
+} // function editnews_help
+
+/**
+ * Implementation of hook_perm().
+ */
+function editnews_perm() {
+  return array('access editnews');
+} // function editnews_perm
+
+/**
+ * Implementation of hook_menu().
+ */
+function editnews_menu() {
+  $items = array();
+
+  // If Innovation News profile is installed, make link a suggested item.
+  $profile = variable_get('install_profile', '');
+  if ($profile == 'innovationnewsprofile') {
+    $type = MENU_SUGGESTED_ITEM;
+  }
+  else {
+    $type = MENU_NORMAL_ITEM;
+  }
+
+  $items['editnews'] = array(
+    'title' => 'Edit News',
+    'page callback' => 'editnews_page',
+    'access arguments' => array('access editnews'),
+    'type' => $type,
+  );
+
+  return $items;
+} // function editnews_menu
+
+/**
+ * Return the content of the editnews page.
+ *
+ * @return
+ *   The page content.
+ */
+function editnews_page() {
+  $output = '';
+
+  // Add stylesheets.
+  $path_to_editnews = drupal_get_path('module', 'editnews');
+  $path_to_innovationnews = drupal_get_path('module', 'innovationnews');
+  drupal_add_css($path_to_editnews . '/editnews.css');
+  drupal_add_css($path_to_innovationnews . '/innovationnews.css');
+
+  // Add the form which will allow the user to select a filter.
+  $output .= drupal_get_form('editnews_select_filter_form');
+
+  // If the currently-selected filter is 1 or 2, use it. Otherwise use 0.
+  // 0 - unpublished news, 1 - published news, 2 - all news.
+  $filter_url = check_url($_GET['filter']);
+  if ($filter_url == 1 || $filter_url == 2) {
+    $filter = $filter_url;
+  }
+  else {
+    $filter = 0;
+  }
+
+  $news_types_SQL = innovationnews_get_news_types_SQL();
+  $news_types_array = innovationnews_get_news_types_array();
+  $sql_arguments = $news_types_array;
+
+  // Use a different SQL query depending on the currently-set filter.
+  switch ($filter) {
+    case 0:
+      $sql = 'SELECT * FROM {node} WHERE type IN ' . $news_types_SQL . ' AND ' .
+             'status = %d ORDER BY created DESC';
+      $sql_arguments[] = 0;
+      break;
+    case 1:
+      $sql = 'SELECT * FROM {node} WHERE type IN ' . $news_types_SQL . ' AND ' .
+             'status != %d ORDER BY created DESC';
+      $sql_arguments[] = 0;
+      break;
+    case 2:
+      $sql = 'SELECT * FROM {node} WHERE type IN ' . $news_types_SQL . 
+             'ORDER BY created DESC';
+      break;
+  }
+  $result = pager_query($sql, 10, 0, NULL, $sql_arguments);
+
+  // Add a teaser and story information for each node to the return value.
+  $content_displayed = FALSE;
+  while ($basic_node = db_fetch_object($result)) {
+    if ($content_displayed == TRUE) {
+      $output .= '<hr class="editnews_separator" />';
+    }
+
+    // Add story information and teaser to the return value.
+    $full_node = node_load($basic_node->nid);
+    $story_info = innovationnews_get_story_info_HTML($full_node);
+    $output .= node_view($full_node, TRUE);
+    $output .= $story_info;
+
+    // Add an edit link to the return value.
+    $edit_options = array('query' => $edit_arguments, 'absolute' => 'TRUE');
+    $edit_link = l('Edit', url("node/$full_node->nid/edit", $edit_options));
+    $output .= '<p class="editnews_edit">' . $edit_link . '</p>';
+
+    $content_displayed = TRUE;
+  } // while
+
+  // Display a message depending upon the output and filter.
+  if (!$content_displayed && $filter == 0) {
+    drupal_set_message(t('All news is currently published.'));
+  }
+  elseif (!$content_displayed && $filter == 1) {
+    drupal_set_message(t('All news is currently unpublished.'));
+  }
+  elseif (!$content_displayed && $filter == 2) {
+    drupal_set_message(t('No news has been submitted yet.'));
+  }
+
+  $output .= theme_pager();
+
+  return $output;
+} // editnews_page
+
+/**
+ * Implementation of hook_form().
+ *
+ * Display a select form which will allow the user to select a filter.
+ */
+function editnews_select_filter_form() {
+  $form = array();
+
+  // Valid filters.
+  $options = array(
+    '0' => t('Unpublished news'),
+    '1' => t('Published news'),
+    '2' => t('All news'),
+  );
+
+  // If the currently-selected filter is 1 or 2, use it. Otherwise use 0.
+  $filter_url = check_url($_GET['filter']);
+  if ($filter_url == 1 || $filter_url == 2) {
+    $default = $filter_url;
+  }
+  else {
+    $default = 0;
+  }
+
+  // Define the select form for selecting a filter.
+  $form['editnews']['filter'] = array(
+    '#title' => t('Select Filter'),
+    '#type' => 'select',
+    '#options' => $options,
+    '#default_value' => $default,
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('View'),
+  );
+
+  return $form;
+} // function editnews_select_filter_form
+
+/**
+ * Implementation of hook_form_submit().
+ *
+ * Redirect to the editnews page, using the selected filter.
+ */
+function editnews_select_filter_form_submit($form, &$form_state) {
+  $filter = check_url($form_state['values']['filter']);
+  $arguments = array('filter' => $filter);
+  $options = array('query' => $arguments, 'absolute' => 'true');
+  $form_state['redirect'] = url('editnews', $options);
+} // function editnews_select_filter_form_submit

@@ -1,0 +1,328 @@
+<?php
+// $Id: transformations.module,v 1.9 2009/06/23 19:21:34 jpetso Exp $
+/**
+ * @file
+ * Transformations -
+ * A framework for generic data transformation pipelines.
+ *
+ * Copyright 2009 by Jakob Petsovits ("jpetso", http://drupal.org/user/56020)
+ */
+
+define('TRANSFORMATIONS_MINIMUM_VERSION', 1);
+define('TRANSFORMATIONS_VERSION', 1);
+
+
+/**
+ * Autoload callback: makes it possible to use classes without unconditionally
+ * including them beforehand and without calling an initialization function.
+ */
+function transformations_autoload_core($class) {
+  if (strpos($class, 'Tf') !== 0) { // we only care about Tf* classes
+    return;
+  }
+  if ($class == 'TfOperationTools') {
+    module_load_include('inc', 'transformations', 'core/transformations.operation.tools');
+    return; // this one has no inter-dependencies on other include files
+  }
+  $dataClasses      = array('TfDataWrapper', 'TfConcreteData');
+  $operationClasses = array('TfOperation', 'TfOutput', 'TfOutputSchemaListener');
+
+  $loadPipeline = ($class == 'TfPipeline');
+  $loadOperation = $loadPipeline || in_array($class, $operationClasses);
+  $loadData = $loadOperation || in_array($class, $dataClasses);
+
+  if ($loadData) {
+    module_load_include('inc', 'transformations', 'core/transformations.data');
+  }
+  if ($loadOperation) {
+    module_load_include('inc', 'transformations', 'core/transformations.operation');
+  }
+  if ($loadPipeline) {
+    module_load_include('inc', 'transformations', 'core/transformations.pipeline');
+  }
+
+  if (strpos($class, 'TfDataWidget') === 0) {
+    // If the class name starts with TfDataWidget, it's in the widget include file.
+    _transformations_include_data_widget();
+  }
+}
+
+/**
+ * Implementation of hook_init():
+ * Code that is executed on every page request.
+ *
+ * Some important functions seem to be missing from hook_boot() (in particular,
+ * module_load_include() complains about drupal_get_path() not existing) so
+ * let's assume that hook_init() is sufficient.
+ */
+function transformations_init() {
+  spl_autoload_register('transformations_autoload_core');
+}
+
+/**
+ * Wrapper for ctools_include(), using our own private copy if ctools isn't
+ * available. We could also redefine ctools_include(), but that might clash
+ * with other modules that do the same, so let's not do that.
+ */
+function _transformations_ctools_include_plugins() {
+  if (module_exists('ctools')) {
+    ctools_include('plugins');
+  }
+  elseif (!function_exists('ctools_get_plugins')) {
+    static $used = FALSE;
+    if (empty($used)) {
+      require_once './' . drupal_get_path('module', 'transformations') . '/core/plugins.inc';
+    }
+    $used = TRUE;
+  }
+}
+
+/**
+ * Menu system wildcard loader ('%transformations_pipeline') for pipeline
+ * instances. Simple forward to TfPipeline::load().
+ */
+function transformations_pipeline_load($pipelineId) {
+  return TfPipeline::load($pipelineId);
+}
+
+
+/**
+ * Retrieve the list of available operations.
+ * The array key is the class name of the operation, and the value is a
+ * structured array containing useful information like file path or the
+ * allowed set of type options for an operation constructor.
+ *
+ * @param $className
+ *   If set, return only the information about the given class instead of
+ *   a list of all classes. If there is no such operation class, return FALSE.
+ */
+function transformations_operation_info($className = NULL) {
+  $operations = _transformations_extension_info('operations');
+
+  if (isset($className)) {
+    return isset($operations[$className]) ? $operations[$className] : FALSE;
+  }
+  return $operations;
+}
+
+
+/**
+ * Retrieve the list of available data wrappers.
+ * The array key is the class name of the operation, and the value is a
+ * structured array containing useful information like the file path.
+ */
+function transformations_data_wrapper_info() {
+  $wrappers = _transformations_extension_info('data_wrappers');
+
+  if (isset($className)) {
+    return isset($wrappers[$className]) ? $wrappers[$className] : NULL;
+  }
+  return $wrappers;
+}
+
+
+/**
+ * Retrieve the list of available extensions and their properties.
+ *
+ * @param $extensionType
+ *   Either 'operations' or 'data_wrappers', depending on which extension type
+ *   you want to retrieve info about.
+ */
+function _transformations_extension_info($extensionType) {
+  static $extensions;
+
+  if (isset($extensions)) {
+    return $extensions[$extensionType];
+  }
+  $cache = cache_get('transformations:extensions');
+
+  if (!empty($cache->data)) {
+    $extensions = $cache->data;
+    return $extensions[$extensionType];
+  }
+  _transformations_ctools_include_plugins();
+
+  // Call hook_ctools_plugin_api() to include the various
+  // [module].transformations.inc files, taking care of API compatibility.
+  $files = ctools_plugin_api_include('transformations', 'transformations',
+    TRANSFORMATIONS_MINIMUM_VERSION, TRANSFORMATIONS_VERSION
+  );
+  $types = array(
+    'operations' => 'operation',
+    'data_wrappers' => 'data_wrapper',
+  );
+
+  // Call hook_transformations_[type]_info() in [module].transformations.inc,
+  // in order to retrieve the file and dependency info. The ctools function
+  // behaves nearly like module_invoke(), but also adds default values for
+  // 'module', 'name' (= class name), 'path' and 'file' if the hook does not
+  // provide those.
+  foreach ($types as $plural => $singular) {
+    $extensions[$plural] = array();
+    $apiInfo = array('hook' => 'transformations_' . $singular . '_info');
+
+    foreach ($files as $module => $file) {
+      $result = ctools_plugin_process($apiInfo, $module, $module, $file['path']);
+      if (is_array($result)) {
+        $extensions[$plural] += $result;
+      }
+    }
+    drupal_alter($apiInfo['hook'], $extensions[$plural]);
+  }
+
+  // Call [module]_operation_[className]() in the .inc file of the
+  // respective plugin, for retrieving detail info without object instantiation.
+  foreach (array('operations' => 'operation') as $plural => $singular) {
+    foreach ($extensions[$plural] as $className => $info) {
+      _transformations_include_extension($className, $extensions[$plural]);
+
+      $function = $info['module'] . '_' . $singular . '_' . $className;
+      $details = $function();
+      if (is_array($details)) {
+        $extensions[$plural][$className] += $details + array(
+          'category' => t('Other'),
+          'label' => $className,
+        );
+      }
+      else {
+        unset($extensions[$plural][$className]);
+      }
+    }
+  }
+
+  cache_set('transformations:extensions', $extensions);
+  return $extensions[$extensionType];
+}
+
+/**
+ * Include the file containing an operation or data wrapper.
+ */
+function _transformations_include_extension($className, $extensionInfo) {
+  static $included = array();
+
+  while (isset($className)) {
+    if (empty($extensionInfo[$className])) {
+      return;
+    }
+    $info = $extensionInfo[$className];
+
+    if (!empty($info['file'])) {
+      $path = $info['path'] . '/' . $info['file'];
+      if (empty($included[$path])) {
+        include_once($path);
+        $included[$path] = TRUE;
+      }
+    }
+    $className = isset($info['parent']) ? $info['parent'] : NULL;
+  }
+}
+
+/**
+ * Implementation of hook_menu().
+ * Abused in order to make sure the cache is cleared when modules are enabled
+ * or disabled, or whatever brings potential changes in extension files.
+ * (That way, the cache is also cleared when visiting admin/build/modules
+ * or when the "Clear caches" button on admin/settings/performance is pressed.)
+ */
+function transformations_menu() {
+  transformations_cache_invalidate();
+}
+
+/**
+ * Clear the extension cache, which causes Transformations to discover
+ * operations and data wrappers from scratch when a module requests information
+ * about either of those.
+ */
+function transformations_cache_invalidate() {
+  cache_clear_all('transformations:extensions', 'cache', '*');
+}
+
+/**
+ * Implementation of hook_transformations_data_wrapper_priority():
+ * Return an array of data classes (deriving from TfDataWrapper) that
+ * are suitable for holding the given @p $data.
+ */
+function transformations_transformations_data_wrapper_priority($data) {
+  $priorities = array();
+
+  if (is_array($data)) {
+    $priorities['TfArrayData'] = 1;
+  }
+  if (is_object($data)) {
+    $priorities['TfObjectData'] = 1;
+  }
+  return $priorities;
+}
+
+/**
+ * Implementation of hook_theme().
+ */
+function transformations_theme() {
+  return array(
+    'transformations_data_widget' => array(
+      'arguments' => array('element' => NULL),
+    ),
+    'transformations_pipeline_select' => array(
+      'arguments' => array('element' => NULL),
+    ),
+  );
+}
+
+/**
+ * Implementation of hook_elements():
+ * Provide a form element widget for specifying inputs through the UI.
+ */
+function transformations_elements() {
+  return array(
+    'transformations_data_widget' => array(
+      '#input' => TRUE,
+      '#tree' => TRUE,
+      '#value_callback' => 'transformations_data_widget_value',
+      '#process' => array('transformations_data_widget_process'),
+    ),
+    'transformations_pipeline_select' => array(
+      '#input' => TRUE,
+      '#tree' => TRUE,
+      '#process' => array('transformations_pipeline_select_process'),
+    ),
+  );
+}
+
+/**
+ * Include the file that provides the operation input widget.
+ */
+function _transformations_include_data_widget() {
+  static $included = FALSE;
+  if (!$included) {
+    // The widget functionality exists in a file that is not loaded by default.
+    module_load_include('inc', 'transformations', 'core/transformations.data.widget');
+    $included = TRUE;
+  }
+}
+
+/**
+ * Form value callback for the widget element. Form API should always call the
+ * value callback before invoking other element callbacks (process, theme)
+ * so if we include the widget code only at this point, we should be fine.
+ */
+function transformations_data_widget_value($element, $edit = FALSE) {
+  _transformations_include_data_widget();
+  return (func_num_args() == 1)
+    ? _transformations_data_widget_value($element)
+    : _transformations_data_widget_value($element, $edit);
+}
+
+/**
+ * Implementation of hook_ctools_plugin_api().
+ */
+function transformations_ctools_plugin_api($module, $api) {
+  if ($module == 'transformations' && $api == 'transformations') {
+    $api_version = 1;
+    /*return array(
+      $api_version =>*/ return array(
+        'path' => drupal_get_path('module', 'transformations') . '/transformations',
+        'version' => $api_version,
+    //  ),
+    );
+  }
+}

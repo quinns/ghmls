@@ -1,0 +1,13 @@
+; $Id; $
+name = "Toggle WWW"
+description = "An easy, PHP header redirect based way to redirect 
+incoming links from http://www.example.com to http://example.com and 
+vice-versa."
+core = "6.x"
+
+; Information added by drupal.org packaging script on 2008-04-18
+version = "6.x-1.0"
+core = "6.x"
+project = "toggle_www"
+datestamp = "1208539514"
+

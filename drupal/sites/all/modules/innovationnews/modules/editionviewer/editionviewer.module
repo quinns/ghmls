@@ -1,0 +1,549 @@
+<?php
+// $Id: editionviewer.module,v 1.1.2.12 2008/09/24 17:36:05 JohnKarahalis Exp $
+
+/**
+ * Implementation of hook_help().
+ */
+function editionviewer_help($path, $arg) {
+  $output = '';
+  switch ($path) {
+    case "admin/help#editionviewer":
+      $output = '<p>' . t('The Edition Viewer module displays news by ' .
+                'Edition and allows users to generate an XML representation  ' .
+                'of the edition. This XML can be imported into certain ' .
+                'software or used for any other of a variety of purposes. ' .
+                'Specifics regarding the XML document are described below in ' .
+                'the XML reference.') . '</p>';
+      $output .= '<p>' . t('The Edition Viewer module is dependent upon the '.
+                 l('Edition Manager', 'editionmanager') . ' module, which ' .
+                 'allows a user to place news stories into Editions. For ' .
+                 'more information on the Edition Manager, please see the ' .
+                 'Edition Manager ') .
+                 l('help page', 'admin/help/editionmanager') .
+                 t('.') . '</p>';
+
+      // XML reference
+      $output .= '<h3>' . t('XML Reference') . '</h3>';
+      $output .= '<ul>';
+      $output .= '<li>' . t('&lt;edition&gt; - The container of this edition');
+      $output .= '<ul>';
+      $output .= '<li>' . t('number - The number of this edition or "all" if ' .
+                 'all editions are being displayed') . '</li>';
+      $output .= '</ul>';
+      $output .= '</li>';
+      $output .= '<li>' . t('&lt;story&gt; - The container of one story');
+      $output .= '<ul>';
+      $output .= '<li>' . t('nid - The Drupal ID for this content') . '</li>';
+      $output .= '<li>' . t('character_count - The character count of this ' .
+                 'story, including spaces and line breaks') . '</li>';
+      $output .= '<li>' . t('created - The time this story was first ' .
+                 'written, in Unix time') . '</li>';
+      $output .= '<li>' . t('location* - The coordinates which point to the ' .
+                 'the location which this story relates to') . '</li>';
+      $output .= '<li>' . t('readerstory* - The value "true" if this story ' .
+                 'is a Reader Story') . '</li>';
+      $output .= '</ul>';
+      $output .= '</li>';
+      $output .= '<li>' . t('&lt;title&gt; - The title of this story') .
+                 '</li>';
+      $output .= '<li>' . t('&lt;author&gt; - The author of this story') .
+                 '</li>';
+      $output .= '<li>' . t('&lt;text&gt; - The container for the actual ' .
+                 'text of this story') . '</li>';
+      $output .= '<ul>';
+      $output .= '<li>' . t('&lt;p&gt; - A single paragraph') . '</li>';
+      $output .= '</ul>';
+      $output .= '</li>';
+      $output .= '<li>' . t('&lt;image&gt;* - An image associated with this ' .
+                 'story');
+      $output .= '<ul>';
+      $output .= '<li>' . t('filename - The filename of this image') . '</li>';
+      $output .= '</ul>';
+      $output .= '</li>';
+      $output .= '</ul>';
+      $output .= '<p>' . t('* only available when the Edition Viewer ' .
+                 'integrates with the Innovation News Installation Profile.') .
+                 '</p>';
+      break;
+  }
+  return $output;
+} // function editionviewer_help
+
+/**
+* Implementation of hook_perm().
+*/
+function editionviewer_perm() {
+  return array('access editionviewer', 'access editionviewer XML data',
+               'administer editionviewer settings');
+} // function editionviewer_perm
+
+/**
+ * Implementation of hook_menu().
+ */
+function editionviewer_menu() {
+  $items = array();
+
+  // If Innovation News profile is installed, make link a suggested item.
+  $profile = variable_get('install_profile', '');
+  if ($profile == 'innovationnewsprofile') {
+    $type = MENU_SUGGESTED_ITEM;
+  }
+  else {
+    $type = MENU_NORMAL_ITEM;
+  }
+
+  $items['editionviewer'] = array(
+    'title' => 'Edition Viewer',
+    'page callback' => 'editionviewer_page',
+    'access arguments' => array('access editionviewer'),
+    'type' => $type,
+  );
+
+  $items['admin/settings/editionviewer'] = array(
+    'title' => 'Edition Viewer',
+    'description' => 'Settings which will affect the Edition Viewer module',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('editionviewer_admin'),
+    'access arguments' => array('administer editionviewer settings'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+} // function editionviewer_menu
+
+/**
+ * Define the settings form.
+ *
+ * @return
+ *   The form data.
+ */
+function editionviewer_admin() {
+  // Define a notice.
+  $edition_manager_settings = l('Edition Manager settings page',
+                                     '/admin/settings/editionmanager');
+  $form['editionviewer_settings_notice'] = array(
+    '#type' => 'markup',
+    '#value' => t('These settings affect the display of editions  on the ' .
+                  '"Edition Viewer" page. To modify the number of Editions, ' .
+                  'visit the ' . $edition_manager_settings . '.'),
+  );
+
+  // Define settings for edition display.
+  $edition_display_description = t('If you would like to restrict users to ' .
+                                   'viewing a certain edition, select that ' .
+                                   'edition. Otherwise, select "Allow choice' .
+                                   'of Edition".');
+
+  $number_of_editions = variable_get('editionmanager_number_of_editions', 10);
+
+  $edition_display_options = array();
+  $edition_display_options[0] = t('Allow choice of Edition');
+  for ($i = 1; $i <= $number_of_editions; $i++) {
+    $edition_display_options[$i] = 'Display Edition #' . $i;
+  }
+
+  $form['editionviewer_edition_display'] = array(
+    '#type' => 'select',
+    '#title' => t('Edition Display'),
+    '#default_value' => variable_get('editionviewer_edition_display', 0),
+    '#description' => $edition_display_description,
+    '#options' => $edition_display_options,
+  );
+
+  // Define settings for node display.
+  $node_options = array('0' => t('Full text'), '1' => t('Teaser'));
+  $form['editionviewer_node_display'] = array(
+    '#type' => 'radios',
+    '#title' => t('Node Display'),
+    '#default_value' => variable_get('editionviewer_node_display', 0),
+    '#options' => $node_options,
+    '#description' => t('How nodes should be displayed. This will only ' .
+                        'affect HTML output.'),
+  );
+
+  // Define settings for link display.
+  $form['editionviewer_display_links'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Display links'),
+    '#default_value' => variable_get('editionviewer_display_links', 0),
+    '#description' => t('Whether or not to display node links. This will ' .
+                        'only affect HTML output.'),
+  );
+
+  return system_settings_form($form);
+} // function editionviewer_admin
+
+/**
+ * Return the content of the editionviewer page
+ *
+ * @return
+ *   The page content.
+ */
+function editionviewer_page() {
+  $output = '';
+
+  $format = check_url($_GET['format']);
+  $edition_url = check_url($_GET['edition']);
+  $number_of_editions = variable_get('editionmanager_number_of_editions', 10);
+
+  // If the currently-selected edition filter is valid, use it.
+  if ((innovationnews_is_int_val($edition_url) && $edition_url > 0
+       && $edition_url <= $number_of_editions) || $edition_url == 'all') {
+    $edition_filter = $edition_url;
+  }
+
+  // If XML is not being displayed, add stylesheet.
+  if (!isset($edition_filter) || isset($edition_filter) && $format != 'xml') {
+    $path_to_editionviewer = drupal_get_path('module', 'editionviewer');
+    drupal_add_css($path_to_editionviewer . '/editionviewer.css');
+  }
+
+  $edition_display = variable_get('editionviewer_edition_display', 0);
+
+  // Format page according to settings, filter, display type, and user access.
+  if (!isset($edition_filter) && $edition_display == 0) {
+    $output = drupal_get_form(editionviewer_select_edition_form);
+  }
+  else {
+    if ($edition_display != 0) {
+      $edition_filter = $edition_display;
+    }
+
+    if ($format == 'xml' && user_access('access editionviewer XML data')) {
+      $nodes_XML = editionviewer_format_nodes($edition_filter, 'XML');
+      $output = editionviewer_format_page_XML($nodes_XML, $edition_filter);
+    }
+    elseif ($format == 'xml' && !user_access('access editionviewer XML data')) {
+      drupal_set_message(t('You do not have access to XML data.'), 'error');
+    }
+    else {
+      $nodes_HTML = editionviewer_format_nodes($edition_filter, 'HTML');
+      $output = editionviewer_format_page_HTML($nodes_HTML, $edition_filter);
+    }
+  }
+
+  return $output;
+} // function editionviewer_page
+
+/**
+ * Return the HTML or XML representation of the nodes in the specified edition.
+ *
+ * @param $edition_filter
+ *   The edition which should be displayed, or "all" if all editions should be 
+ *   displayed.
+ * @param $format
+ *   The format to render the data in. Possible values are 'HTML' and 'XML'.
+ * @return
+ *   The HTML or XML representation of the nodes in the specified edition.
+ */
+function editionviewer_format_nodes($edition_filter, $format) {
+  $output = '';
+
+  // Generate the database result which will be used to return conent.
+  $news_types_SQL = innovationnews_get_news_types_SQL();
+  $news_types_array = innovationnews_get_news_types_array();
+  $sql = 'SELECT * FROM {node} WHERE type IN ' . $news_types_SQL . ' ORDER ' .
+         'BY created ASC';
+  $result = db_query($sql, $news_types_array);
+
+  // Add to the return value depending upon the chosen format.
+  if ($format == 'XML') {
+    // Iterate through all news content, adding valid content to the return
+    // value.
+    while ($basic_node = db_fetch_object($result)) {
+      $full_node = node_load($basic_node->nid);
+      $node_current_edition =
+        editionmanager_get_edition_number($full_node->nid);
+
+      // If this story is published and fits the edition filter, add its
+      // content to the return value.
+      if ($full_node->status != 0 &&
+          ($edition_filter == $node_current_edition || ($edition_filter == 'all'
+           && innovationnews_is_int_val($node_current_edition)))) {
+        $output .= editionviewer_format_node_XML($full_node);
+      }
+    }
+  }
+  elseif ($format == 'HTML') {
+    // Get settings.
+    $node_display = variable_get('editionviewer_node_display', 0);
+    $display_links = variable_get('editionviewer_display_links', 0);
+
+    // Convert 1 to TRUE and 0 to FALSE.
+    switch ($display_links) {
+      case 0:
+        $display_links = FALSE;
+        break;
+      case 1:
+        $display_links = TRUE;
+        break;
+    }
+
+    // Iterate through all news content, adding valid content to the return
+    // value.
+    while ($basic_node = db_fetch_object($result)) {
+      $full_node = node_load($basic_node->nid);
+      $node_current_edition =
+        editionmanager_get_edition_number($full_node->nid);
+
+      // If this story is published and fits the edition filter, add its
+      // content to the return value.
+      if ($full_node->status != 0 &&
+          ($edition_filter == $node_current_edition || ($edition_filter == 'all'
+           && innovationnews_is_int_val($node_current_edition)))) {
+        $output .= editionviewer_format_node_HTML($full_node, $node_display,
+                                                  $display_links);
+      }
+    }
+  }
+
+  return $output;
+
+} // function editionviewer_format_nodes
+
+/**
+ * Return an HTML representation of a single node.
+ *
+ * @param $node
+ *   The node which will be used to generate HTML.
+ * @param $node_display
+ *   0 represents full page display, 1 representes teaser display.
+ * @param $display_links
+ *   True if links should be displayed.
+ * @return
+ *   The HTML representation of this node.
+ */
+function editionviewer_format_node_HTML($node, $node_display, $display_links) {
+  $output = '';
+
+  $profile = variable_get('install_profile', '');
+
+  // Display nodes according to settings.
+  if ($node_display == 0) {
+    $output .= '<h2>' . l($node->title, 'node/' . $node->nid) . '</h2>';
+    $output .= node_view($node, FALSE, TRUE, $display_links);
+  }
+  else {
+    $output .= node_view($node, TRUE, FALSE, $display_links);
+  }
+
+  return $output;
+} // function editionviewer_format_node_HTML
+
+/**
+ * Return an XML representation of a single node.
+ *
+ * @param $node
+ *   The node which will be used to generate XML.
+ * @return
+ *   The XML representation of this node.
+ */
+function editionviewer_format_node_XML($node) {
+  $xml = '';
+
+  $content_unformatted = str_replace("\r\n", ' ', strip_tags($node->body));
+  $content_length = strlen($content_unformatted);
+
+  // Place all paragraphs in <p> tags.
+  $content = preg_replace('/(\n|\r|\n\r|\r\n)+/',
+                          "</p>\n      <p>",
+                          check_plain($node->body));
+  $content = '      <p>' . $content . '</p>';
+//  $content = wordwrap($content, 72, "\n        ");
+
+  // Integration with Innovation News Installation Profile.
+  $profile = variable_get('install_profile', '');
+  if ($profile == 'innovationnewsprofile') {
+    // If an author is specified, use that data in the XML.
+    if (isset($node->field_inews_readerstory_author[0]['value'])) {
+      $author_value = $node->field_inews_readerstory_author[0]['value'];
+      $author = check_plain($author_value);
+    }
+
+    if ($node->type == 'readerstory') {
+      $readerstory = ' readerstory="true"';
+    }
+
+    // If location data is specified, use that data in the XML.
+    if (isset($node->field_inews_location[0]['value'])) {
+      $location = check_plain($node->field_inews_location[0]['value']);
+      $xml_location = ' location="' . $location . '"';
+    }
+  }
+
+  if (!isset($author)) {
+    $author = check_plain($node->name);
+  }
+
+  if (!isset($readerstory)) {
+    $readerstory = '';
+  }
+
+  if (!isset($xml_location)) {
+    $xml_location = '';
+  }
+
+  // Add XML data to the return value.
+  $xml .= "  <story nid=\"$node->nid\"$story_id " .
+          "character_count=\"$content_length\" created=\"$node->created\" " .
+          "$xml_location" . "$readerstory>" . "\n";
+  $xml .= '    <title>' . check_plain($node->title) . '</title>' . "\n";
+  $xml .= '    <author>' . $author . '</author>' . "\n";
+
+  // If we're using the Innovation News profile, get the image data.
+  if ($profile == 'innovationnewsprofile') {
+    $xml .= editionviewer_get_image_XML($node);
+  }
+
+  $xml .= '    <text>' . "\n";
+  $xml .= $content . "\n";
+  $xml .= '    </text>' . "\n";
+  $xml .= '  </story>' . "\n";
+
+  return $xml;
+} // function editionviewer_format_node_XML
+
+/**
+ * Return XML image tags.
+ *
+ * If this is called when not using the Innovation News installation profile,
+ * an empty string will be returned.
+ *
+ * @param $node
+ *   The node to evaluate.
+ * @return
+ *   XML image tags.
+ */
+function editionviewer_get_image_XML($node) {
+  $xml = '';
+
+  $node_body = node_view($node, FALSE, TRUE);
+
+  // Determine the filename of the attached image.
+  $pattern = '/<div .*? class="image-attach-body"><a href="(.*?)"><img src="(.*?)" alt="(.*?)" title="(.*?)" (.*?) \/><\/a><\/div>/';
+
+  preg_match($pattern, $node_body, $matches);
+  $filename = $matches[2];
+
+  // Replace "thumbnail" with nothing to get the original filename.
+  $filename_pattern = '/(.*)(\/.*?\.)(.*?)\.(.*?)$/';
+  $filename_replacement = '${1}${2}$4';
+  $original_filename = preg_replace($filename_pattern, $filename_replacement, $filename);
+
+  if (!empty($original_filename)) {
+    $xml .= "<image filename=\"$original_filename\" />" . "\n";
+  }
+
+  return $xml;
+} // function editionviewer_get_image_XML
+
+/**
+ * Return the HTML representation of the edition.
+ *
+ * @param $html
+ *   The HTML of the node data.
+ * @param $edition_filer
+ *   The currently-selected edition.
+ * @return
+ *   The HTML representation of the edition.
+ */
+function editionviewer_format_page_HTML($html, $edition_filter) {
+  if ($edition_filter != 'all') {
+    drupal_set_title('Edition #' . $edition_filter);
+  } 
+  else {
+    drupal_set_title('All Editions');
+  }
+
+  // If there is output, display a "View XML" link. If there is no output,
+  // display a message.
+  if (!empty($html) && user_access('access editionviewer XML data')) {
+    $link_xml_arguments = array('edition' => $edition_filter,
+                                'format' => 'xml');
+    $link_xml_options = array('query' => $link_xml_arguments,
+                              'absolute' => TRUE);
+    $link_xml = '<div id="editionviewer-view-xml"> ' .
+                l('View XML', 'editionviewer', $link_xml_options) . '</div>';
+    $html = $link_xml . $html;
+  }
+  elseif (empty($html)) {
+    if (innovationnews_is_int_val($edition_filter)) {
+      $classification = 'this edition';
+    }
+    elseif ($edition_filter == 'all') {
+      $classification = 'any edition';
+    }
+    drupal_set_message(t('There is currently no news in '.
+                         $classification . '.'));
+  }
+
+  return $html;
+} // function editionviewer_format_page_HTML
+
+/**
+ * Print the XML representation of an edition.
+ *
+ * @param $content
+ *   The page content.
+ */
+function editionviewer_format_page_XML($xml, $edition_filter) {
+  // Print header data.
+  $xml_header='<?xml version="1.0" encoding="ISO-8859-1"?>' . "\n";
+  header('Content-type: text/xml');
+  print $xml_header;
+
+  // If the edition filter is valid, use it as the "number" attribute.
+  if (innovationnews_is_int_val($edition_filter) || $edition_filter == 'all') {
+    print '<edition number="' . $edition_filter . '">' . "\n";
+  }
+  else {
+    print '<edition>' . "\n";
+  }
+
+  print $xml;
+  print '</edition>';
+} // function editionviewer_format_page_XML
+
+/**
+ * Implementation of hook_form().
+ *
+ * Define a form which will allow the user to select an edition to view.
+ */
+function editionviewer_select_edition_form() {
+  $number_of_editions = variable_get('editionmanager_number_of_editions', 10);
+
+  // Create an array of all possible editions, formatted for use as a
+  // value for the #options key of a "select" form.
+  $select_edition_options = array();
+  $select_edition_options['all'] = t('All Editions');
+  for ($i = 1; $i <= $number_of_editions; $i++) {
+    $select_edition_options["$i"] = t('Edition #' . $i);
+  }
+
+  $form['editionviewer']['edition'] = array(
+    '#title' => t('Select Edition'),
+    '#type' => 'select',
+    '#options' => $select_edition_options,
+    '#default_value' => 1,
+  );
+
+  // Define the form data.
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('View'),
+  );
+
+  return $form;
+} // function editionviewer_select_edition_form
+
+/**
+ * Implementation of hook_form_submit().
+ *
+ * Redirect to the editionviewer page, using the selected edition filter.
+ */
+function editionviewer_select_edition_form_submit($form, &$form_state) {
+  $edition = check_url($form_state['values']['edition']);
+  $arguments = array('edition' => $edition);
+  $options = array('query' => $arguments, 'absolute' => TRUE);
+  $form_state['redirect'] = url('editionviewer', $options);
+} // function editionviewer_select_edition_form_submit

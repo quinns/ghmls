@@ -1,0 +1,22 @@
+input#edit-submit.form-submit {
+  margin: 0 0 10px 0;
+}
+
+.editionmanager_radios div div div {
+  width: 60px;
+  float: left;
+}
+
+.editionmanager_item {
+  margin: 10px auto;
+}
+
+.editionmanager_separator {
+  height: 2px;
+  clear: both;
+  margin: 20px auto;
+}
+
+.editionmanager_float_clear {
+  clear: both;
+}

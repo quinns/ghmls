@@ -1,0 +1,16 @@
+; $Id: network_manager.info
+name = "Network Manager"
+description = "This module allows you to define a network of sites and perform certain operations against some or all of them as well as check settings quickly"
+package = "Infrastructure"
+core = 6.x
+
+; Information added by btopro
+version = "6.x-1.0"
+core = "6.x"
+project = "network_manager"
+; Information added by drupal.org packaging script on 2009-09-09
+version = "6.x-1.2"
+core = "6.x"
+project = "network_manager"
+datestamp = "1252526154"
+

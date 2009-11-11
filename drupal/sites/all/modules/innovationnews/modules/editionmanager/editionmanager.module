@@ -1,0 +1,493 @@
+<?php
+// $Id: editionmanager.module,v 1.1.2.9 2008/09/10 02:28:18 JohnKarahalis Exp $
+
+/**
+ * Implementation of hook_help().
+ */
+function editionmanager_help($path, $arg) {
+  $output = '';
+  switch ($path) {
+    case 'admin/help#editionmanager':
+      $output = '<p>' . t('The Edition Manager module allows a user to place ' .
+                'published news into Editions. After news has been placed ' .
+                'into Editions, other users can view each Edition ' .
+                'separately on the Edition Viewer page. In addition, the ' .
+                'Edition Viewer page can generate an XML representation of ' .
+                'each Edition. This XML can be imported into certain ' .
+                'software or used for any other of a variety of purposes.') .
+                '</p>';
+      $output .= '<p>' . t('To access the Edition Manager, use the ' .
+                '"Edition Manager" link which was automatically added to the ' .
+                'Navigation menu. By default, the Edition Manager will ' .
+                'display stories which do not belong to any Edition. If you ' .
+                'would like to display a different grouping of stories (eg. ' .
+                'stories that belong to Edition #4, or all published stories ' .
+                'regardless of Edition), you can select a filter and click ' .
+                'the "View" button.') . '</p>';
+      $output .= '<p>' . t('If there are any published news stories which ' .
+                'match the filter, those stories will be displayed on the ' .
+                'page. For each story, you will see a teaser, basic story ' .
+                'information and a select box ' .
+                'entitled "Edition". For any story that you would like to ' .
+                'place into an Edition, modify its respective "Edition" ' .
+                'field accordingly. You may modify the Editions of multiple ' .
+                'stories at one time.') . '</p>';
+      $output .= '<p>' . t('When you are satisfied with your selections, ' .
+                'click the "Save" button. The Editions will be updated to ' .
+                'reflect your choices.') . '</p>';
+      break;
+    }
+
+  return $output;
+} // function editionmanager_help
+
+/**
+ * Implementation of hook_perm().
+ */
+function editionmanager_perm() {
+  return array('access editionmanager', 'administer editionmanager settings');
+} // function editionmanager_perm
+
+/**
+ * Implementation of hook_menu().
+ */
+function editionmanager_menu() {
+  $items = array();
+
+  // If Innovation News profile is installed, make link a suggested item.
+  $profile = variable_get('install_profile', '');
+  if ($profile == 'innovationnewsprofile') {
+    $type = MENU_SUGGESTED_ITEM;
+  }
+  else {
+    $type = MENU_NORMAL_ITEM;
+  }
+  
+  $items['editionmanager'] = array(
+    'title' => 'Edition Manager',
+    'page callback' => 'editionmanager_page',
+    'access arguments' => array('access editionmanager'),
+    'type' => $type,
+  );
+
+  $items['admin/settings/editionmanager'] = array(
+    'title' => 'Edition Manager',
+    'description' => 'Settings which will affect the Edition Manager module',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('editionmanager_admin'),
+    'access arguments' => array('administer editionmanager settings'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+} // function editionmanager_menu
+
+/**
+ * Define the settings form.
+ *
+ * @return
+ *   The form data.
+ */
+function editionmanager_admin() {
+  $description = t('The number of editions which you plan to use. This ' .
+                   'number can be increased later.');
+
+  $form['editionmanager_number_of_editions'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Number of Editions'),
+    '#default_value' => variable_get('editionmanager_number_of_editions', '10'),
+    '#description' => $description,
+    '#required' => TRUE,
+  );
+
+  return system_settings_form($form);
+} // function editionmanager_admin
+
+/**
+ * Implementation of hook_validate().
+ *
+ * Validates the settings form provided by editionmanager_admin().
+ */
+function editionmanager_admin_validate($form, &$form_state) {
+  $number_of_editions =
+    check_plain($form_state['values']['editionmanager_number_of_editions']);
+
+  if (!innovationnews_is_int_val($number_of_editions) ||
+      $number_of_editions == 0) {
+    $error = t('The number of editions must be a positive integer value.');
+    form_set_error('editionmanager_number_of_editions', $error);
+  }
+  else {
+    $sql = 'SELECT * from {editionmanager_edition_info}';
+    $result = db_query($sql);
+
+    // Check if any stories belong to a higher edition, and set error if so.
+    $higher_editions = FALSE;
+    while ($row = db_fetch_object($result)) {
+      if ($row->edition > $number_of_editions) {
+        $higher_editions = TRUE;
+        break;
+      }
+    }
+
+   $error = t('Some news stories belong to an Edition higher than Edition #' .
+              $number_of_editions . '. If you wish to continue, please place ' .
+              'all news stories into an Edition lower than Edition #' .
+              $number_of_editions . '.');
+
+    if ($higher_editions) {
+      form_set_error('editionmanager_number_of_editions', $error);
+    }
+  }
+} // function editionmanager_admin_validate
+
+/**
+ * Return the content of the editionmanager page.
+ *
+ * @return
+ *   The page content.
+ */
+function editionmanager_page() {
+  $output = '';
+
+  // Add stylesheets.
+  $path_to_editionmanager = drupal_get_path('module', 'editionmanager');
+  $path_to_innovationnews = drupal_get_path('module', 'innovationnews');
+  drupal_add_css($path_to_editionmanager . '/editionmanager.css');
+  drupal_add_css($path_to_innovationnews . '/innovationnews.css');
+
+  $number_of_editions = variable_get('editionmanager_number_of_editions', 10);
+  $edition_url = check_url($_GET['edition']);
+
+  $output .= '<div id="editionmanager_filterform">';
+  $output .= drupal_get_form('editionmanager_filter_by_edition_form');
+  $output .= '</div>';
+
+  // If the selected edition filter is valid, use it. Otherwise, set filter
+  // as 'none'.
+  if ($edition_url == 'all' || (innovationnews_is_int_val($edition_url)
+                                && $edition_url > 0
+                                && $edition_url <= $number_of_editions)) {
+    $edition_filter = $edition_url;
+  }
+  else {
+    $edition_filter = 'none';
+  }
+
+  // Generate the database result which will be used to return content.
+  $news_types_SQL = innovationnews_get_news_types_SQL();
+  $news_types_array = innovationnews_get_news_types_array();
+  $sql = 'SELECT * FROM {node} WHERE type IN ' . $news_types_SQL . 
+         'ORDER BY created DESC';
+  $result = db_query($sql, $news_types_array);
+
+  $output .= drupal_get_form('editionmanager_nodes_form', '', $result,
+                             $edition_filter);
+
+  return $output;
+} // function editionmanager_page
+
+/**
+ * Implementation of hook_form().
+ *
+ * For each node which matches the edition filter, define a teaser and radio
+ * buttons for edition selection.
+ *
+ * @param $result
+ *   The database result.
+ * @param $edition_filter
+ *   The filter which specifies which edition shouold be displayed.
+ */
+function editionmanager_nodes_form(&$node, $form_state, $result,
+                                   $edition_filter) {
+  $form = array();
+
+  $number_of_editions = variable_get('editionmanager_number_of_editions', 10);
+  $content_displayed = FALSE;
+
+  // Iterates through all news content.
+  for ($i = 1; $basic_node = db_fetch_object($result); $i++) {
+    $full_node = node_load($basic_node->nid);
+
+    // If this node is published, get it's edition.
+    if ($full_node->status != 0) {
+      $node_edition = editionmanager_get_edition_number($full_node->nid);
+
+      // If it does not have an edition, set it's current edition to 'none'.
+      if (empty($node_edition)) {
+        $node_edition = 'none';
+      }
+
+      // If the selected edition filter matches this node's current edition,
+      // display a teaser and the edition selection form.
+      if ($edition_filter == $node_edition || $edition_filter == 'all') {
+        // If this is the first match, create a form fieldset.
+        if (!array_key_exists('editionmanager', $form)) {
+          $form['editionmanager'] = array(
+            '#type' => 'fieldset',
+          );
+        }
+
+        // Get an array of this node's form.
+        $node_form = array();
+        $node_form = editionmanager_form_build($full_node, $node_edition,
+                                               $content_displayed);
+
+        $form['editionmanager'] = array_merge($form['editionmanager'],
+                                              $node_form['editionmanager']);
+
+        $content_displayed = TRUE;
+      }
+
+    } // If this node is published.
+
+  } // for
+
+  // If no content was displayed, give the user a message.
+  if (!$content_displayed) {
+    if ($edition_filter == 'none') {
+      drupal_set_message(t('All published news already belongs to an ' . 
+                           'edition, or there is no published news.'));
+    }
+    elseif ($edition_filter == 'all') {
+      drupal_set_message(t('There is currently no published news.'));
+    }
+    else {
+      drupal_set_message(t('There is currently no news in Edition #' .
+                           $edition_filter . '.'));
+    }
+  }
+  // If content was displayed, provide a "Save" button.
+  else {
+    $form['editionmanager']['current_filter'] = array(
+      '#type' => 'hidden',
+      '#value' => $edition_filter,
+    );
+
+    $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Save'),
+    );
+  }
+
+  return $form;
+} // function editionmanager_form
+
+/**
+ * Define the form for a certain node.
+ *
+ * @param $current_node
+ *   The node which will be associated with an edition.
+ * @param $current_node_edition
+ *   The current edition of this node.
+ * @param $first_call
+ *   TRUE if content has already been displayed.
+ */
+function editionmanager_form_build($current_node, $current_node_edition,
+                                   $content_displayed) {
+
+  $form = array();
+  $number_of_editions = variable_get('editionmanager_number_of_editions', 10);
+
+  // Wrap this item (teaser + form) in a <div>.
+  $item_value = '<div class="editionmanager_item">';
+  if ($content_displayed) {
+    $item_value = '<hr class="editionmanager_separator" />' . $item_value;
+  }
+  $form['editionmanager']['item' . $current_node->nid] = array(
+    '#type' => 'markup',
+    '#value' => $item_value,
+  );
+
+  // Add the teaser as form markup.
+  $form['editionmanager']['teaser' . $current_node->nid] = array(
+    '#type' => 'markup',
+    '#value' => node_view($current_node, TRUE),
+  );
+
+  // Add story information as markup.
+  $story_info = innovationnews_get_story_info_HTML($current_node);
+  $story_info_value = $story_info;
+  $form['editionmanager']['story_info' . $current_node->nid] = array(
+    '#type' => 'markup',
+    '#value' => $story_info_value,
+  );
+
+  // Create an array of all possible editions, formatted for use as a
+  // value for the #options key of a "radios" form.
+  $edition_options = array();
+  $edition_options['edition_' . $current_node->nid . '_none'] = t('- None -');
+  for ($j = 1; $j <= $number_of_editions; $j++) {
+    $edition_options['edition_' . $current_node->nid . '_' . $j] = t($j);
+  }
+
+  // Define the radio form for selecting an edition.
+  $radios_default = 'edition_' . $current_node->nid . '_' . 
+                    $current_node_edition;
+  $form['editionmanager']['radios' . $current_node->nid] = array(
+    '#type' => 'select',
+    '#multiple' => FALSE,
+    '#title' => 'Edition',
+    '#required' => 'true',
+    '#default_value' => $radios_default,
+    '#options' => $edition_options,
+    '#prefix' => '<div class="editionmanager_radios">',
+    '#suffix' => '</div>',
+  );
+
+  // Close the <div> which wrapped this item and insert a div which clears
+  // the floating <div>s (CSS work-around).
+  $form['editionmanager']['itemclose' . $current_node->nid] = array(
+    '#type' => 'markup',
+    '#value' => '</div><div class="editionmanager_float_clear"></div>',
+  );
+
+  return $form;
+} // function editionmanager_radios_form
+
+/**
+ * Implementation of hook_form_submit().
+ *
+ * Add the new edition information to the database.
+ */
+function editionmanager_nodes_form_submit($form, &$form_state) {
+  $number_of_editions = variable_get('editionmanager_number_of_editions', 10);
+
+  // Iterate through $form_state values.
+  foreach ($form_state['values'] as $value) {
+    $value = check_plain($value);
+
+    // If this form value is edition information, add the information to the
+    // edition database.
+    if (substr($value, 0, 8) == 'edition_') {
+      // Data comes in the form edition_[nid]_[new edition]
+      $data = str_replace('edition_', '', $value);
+      $data = explode('_', $data);
+      $nid = $data[0];
+      $new_edition = $data[1];
+
+      // If an edition has been selected, update the edition database.
+      if ($new_edition != 'none') {
+        $old_edition = editionmanager_get_edition_number($nid);
+
+        // If there was a previous edition, update the row.
+        // If there was no previous edition, insert a new row.
+        // If the new edition matches the old edition, do nothing.
+        if (!empty($old_edition) && $old_edition != $new_edition) {
+          db_query('UPDATE {editionmanager_edition_info} SET edition = %d ' .
+                   'WHERE nid = %d and edition = %d', $new_edition, $nid,
+                   $old_edition);
+        }
+        elseif (empty($old_edition)) {
+          db_query('INSERT INTO {editionmanager_edition_info} (nid, edition) ' .
+                   'VALUES (%d, %d)', $nid, $new_edition);
+        }
+      }
+      // If the user selected "None" for this node's edition, delete that
+      // node's entry from the edition database.
+      else {
+        db_query('DELETE FROM {editionmanager_edition_info} WHERE nid = %d',
+                 $nid);
+      }
+
+    } // If this form value is edition information.
+
+  } // foreach
+
+  // If the currently-selected edition filter is valid, use that same
+  // filter after the form is submitted.
+  $current_filter = check_url($form_state['values']['current_filter']);
+  if ((innovationnews_is_int_val($current_filter) && $current_filter > 0 &&
+       $current_filter <= $number_of_editions)
+      || $current_filter == 'all') {
+    $edition_filter = $current_filter;
+  }
+  else {
+    $edition_filter = 'none';
+  }
+
+  $arguments = array('edition' => $edition_filter);
+  $options = array(
+    'query' => $arguments,
+    'absolute' => TRUE,
+  );
+  $form_state['redirect'] = url('editionmanager', $options);
+
+  drupal_set_message(t('The editions have been set.'));  
+} // function editionmanager_form_submit
+
+/**
+ * Implementation of hook_form().
+ *
+ * Define the form which allows the user to select an edition filter.
+ */
+function editionmanager_filter_by_edition_form() {
+  $number_of_editions = variable_get('editionmanager_number_of_editions', 10);
+
+  // Create an array of all possible editions, formatted for use as a
+  // value for the #options key of a "select" form.
+  $edition_filter_options = array();
+  $edition_filter_options['all'] = t('Any or no Edition');
+  $edition_filter_options['none'] = t('No Edition');
+  for ($i = 1; $i <= $number_of_editions; $i++) {
+    $edition_filter_options[$i] = t('Edition #' . $i);
+  }
+
+  // If the selected edition is valid, use it as the default value in this form.
+  $edition_url = check_url($_GET['edition']);
+  if ($edition_url == 'all' || (innovationnews_is_int_val($edition_url) &&
+                                $edition_url > 0 &&
+                                $edition_url <= $number_of_editions)) {
+    $default_edition = $edition_url;
+  }
+  else {
+    $default_edition = 'none';
+  }
+
+  // Define the form data.
+  $form['edition_select']['select'] = array(
+    '#type' => 'select',
+    '#title' => t('Display news which belongs to'),
+    '#options' => $edition_filter_options,
+    '#default_value' => $default_edition,
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('View'),
+  );
+
+  return $form;
+} // function editionmanager_filter_by_edition_form
+
+/**
+ * Implementation of hook_form_submit().
+ *
+ * Redirect to the editionmanager page, using the selected edition filter.
+ */
+function editionmanager_filter_by_edition_form_submit($form, &$form_state) {
+  $edition_filter = check_url($form_state['values']['select']);
+  $arguments = array('edition' => $edition_filter);
+  $options = array('query' => $arguments, 'absolute' => TRUE);
+  $form_state['redirect'] = url('editionmanager', $options);
+} // function editionmanager_filter_by_edition_form_submit
+
+/**
+ * Return the edition number of a given node
+ *
+ * @param $nid
+ *   The nid of the node to check.
+ * @return
+ *   The edition number of the given node, or an empty string if it has no
+ *   edition.
+ */
+function editionmanager_get_edition_number($nid) {
+  $edition_number = '';
+
+  $sql = 'SELECT * from {editionmanager_edition_info} WHERE nid = %d';
+  $result = db_query($sql, $nid);
+  $row = db_fetch_object($result);
+  $edition_number = $row->edition;
+
+  return $edition_number;
+} // function editionmanager_get_edition_number

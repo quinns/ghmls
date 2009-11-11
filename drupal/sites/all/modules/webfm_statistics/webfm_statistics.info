@@ -1,0 +1,13 @@
+; $Id:
+name = Web File Manager Statistics Report
+description = A report that tracks user download statistics for the Web File Manager Modultracks user download statistics for the WEb File Manager Module.
+package = WebFM
+core = 6.x
+dependencies[] = webfm
+
+; Information added by drupal.org packaging script on 2009-05-11
+version = "6.x-1.1"
+core = "6.x"
+project = "webfm_statistics"
+datestamp = "1242052636"
+

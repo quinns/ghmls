@@ -1,0 +1,49 @@
+<?php
+// $Id: editionmanager.install,v 1.1.2.3 2008/08/12 20:38:22 JohnKarahalis Exp $
+
+/**
+ * Implementation of hook_schema().
+ *
+ * Define the schema for a table which will hold edition associations.
+ */
+function editionmanager_schema() {
+  $edition_description = t('The edition which this node belongs to.');
+
+  $schema['editionmanager_edition_info'] = array(
+    'description' => t('Saves node-edition associations'),
+    'fields' => array(
+      'nid' => array(
+         'description' => t('The identifier for a specific node.'),
+         'type' => 'int',
+         'unsigned' => TRUE,
+         'not null' => TRUE),
+       'edition' => array(
+         'description' => $edition_description,
+         'type' => 'int',
+         'unsigned' => TRUE,
+         'not null' => TRUE),
+    ),
+    'primary key' => array('nid'),
+  );
+
+  return $schema;  
+} // function editionmanager_schema
+
+/**
+ * Implementation of hook_install().
+ *
+ * Install the schema from hook_schema().
+ */
+function editionmanager_install() {
+  drupal_install_schema('editionmanager');
+} // function editionmanager_install
+
+/**
+ * Implementation of hook_uninstall().
+ *
+ * Drop all tables and delete all variables which relate to this module.
+ */
+function editionmanager_uninstall() {
+  drupal_uninstall_schema('editionmanager');
+  variable_del('editionmanager_number_of_editions');
+} // function editionmanager_uninstall

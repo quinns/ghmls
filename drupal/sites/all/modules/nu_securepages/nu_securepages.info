@@ -1,0 +1,11 @@
+; $Id: nu_securepages.info,v 1.3.2.5 2008/11/15 00:21:05 gordon Exp $
+name = Nu-Secure Pages
+description = "The Nu-Designs version of Secure Pages, which also passes the Ubercart uc_cart_id as a GET param when the URL contains the word checkout. The Ubercart uc_cart module then captures it, carrying over the HTTP session to HTTPS."
+core = 6.x
+
+; Information added by drupal.org packaging script on 2009-05-03
+version = "6.x-1.8"
+core = "6.x"
+project = "nu_securepages"
+datestamp = "1241394690"
+

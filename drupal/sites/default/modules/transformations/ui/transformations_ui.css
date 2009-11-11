@@ -1,0 +1,160 @@
+/* $Id: transformations_ui.css,v 1.4 2009/06/25 14:25:56 jpetso Exp $ */
+
+.transformations-pipeline-canvas {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+}
+
+.transformations-operation-blocks {
+  position: relative;
+  height: 100%;
+}
+
+#transformations-grippie {
+  position: relative;
+  bottom: 0;
+  width: 100%;
+  background: #eeeeee;
+  border-top: 1px solid darkgrey;
+  text-align: center;
+  cursor: s-resize;
+  display: none;
+}
+
+.transformations-operation-block {
+  display: inline-block;
+  float: left;
+  background: white;
+}
+
+.transformations-operation-block-table {
+  display: table;
+  border: 2px silver solid;
+  padding: 0;
+  padding-top: 0.2em;
+  margin: 0.6em;
+  margin-left: 0;
+}
+
+.transformations-operation-block-header, .transformations-operation-block-row {
+  display: table-row;
+}
+
+.transformations-operation-block-header-cell, .transformations-operation-block-row {
+  display: table-cell;
+  border-bottom: 1px solid silver;
+  padding-left: 0.6em;
+  padding-right: 0.6em;
+  padding-bottom: 0.3em;
+  padding-top: 0.1em;
+  text-align: right;
+}
+
+.transformations-operation-block-header-cell div {
+  display: inline;
+}
+
+.transformations-operation-block-header-label {
+  float: left;
+  text-align: left;
+  font-weight: bold;
+}
+
+.transformations-operation-block-header-actions {
+  margin-left: 0.8em;
+}
+
+.transformations-operation-block-header-actions input {
+  margin: 0 -2px -3px 4px;
+  padding: 0;
+}
+
+.transformations-operation-block-header-actions img {
+  margin: 0 -2px -3px 5px;
+}
+
+.transformations-operation-block-connections {
+  display: table-cell;
+  padding-top: 3px;
+  padding-bottom: 4px;
+}
+
+.transformations-operation-block-connections-table {
+  display: table;
+  width: 100%;
+  margin-top: 0.2em;
+}
+
+.transformations-operation-block-connections-body {
+  display: table-row;
+}
+
+.transformations-operation-slot-connector {
+  margin: 1px -1px 1px -1px;
+  border: 1px solid silver;
+}
+
+.transformations-operation-slot-connector.connected {
+  background-color: 1px solid teal;
+}
+
+.transformations-operation-slot-connector.potential-connection-target {
+  background-color: #98fb98;
+}
+
+input[disabled], .transformations-operation-slot-connector.disabled {
+  border: 1px solid silver;
+  color: gray;
+  background-color: #f8f8ff;
+}
+
+.transformations-operation-slot-connector.connected.enabled.potential-connection-target {
+  border: 1px solid #ff4500;
+}
+
+.transformations-operation-slot-connector.connecting {
+  border: 1px solid teal;
+}
+
+.transformations-operation-block-inputs {
+  display: table-cell;
+  vertical-align: top;
+  padding-right: 10px;
+}
+
+.transformations-operation-block-outputs {
+  display: table-cell;
+  vertical-align: top;
+  padding-left: 10px;
+}
+
+.transformations-operation-slot {
+  white-space: nowrap;
+  clear: both;
+}
+
+.transformations-operation-input * {
+  float: left;
+}
+
+.transformations-operation-input .transformations-operation-slot-connector {
+  float: left;
+  margin-right: 5px;
+}
+
+.transformations-operation-output {
+  text-align: right;
+}
+
+.transformations-operation-output * {
+  float: right;
+}
+
+.transformations-operation-output .transformations-operation-slot-connector {
+  text-align: right;
+  margin-left: 5px;
+}
+
+.transformations-operation-slot-hover .transformations-operation-slot-connector img {
+  background-color: orange;
+}

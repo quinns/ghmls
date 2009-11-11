@@ -1,0 +1,13 @@
+<?php
+// $Id: editionviewer.install,v 1.1.2.4 2008/08/12 20:38:22 JohnKarahalis Exp $
+
+/**
+ * Implementation of hook_uninstall().
+ *
+ * Delete all variables which relate to this module.
+ */
+function editionviewer_uninstall() {
+  variable_del('editionviewer_edition_display');
+  variable_del('editionviewer_node_display');
+  variable_del('editionviewer_display_links');
+} // function editionviewer_uninstall

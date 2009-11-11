@@ -1,0 +1,9 @@
+input#edit-submit.form-submit {
+  margin: 0 0 10px 0;
+}
+
+.editnews_separator {
+  height: 2px;
+  clear: both;
+  margin: 20px auto;
+}

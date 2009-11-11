@@ -1,0 +1,185 @@
+<?php
+// $Id: innovationnews.module,v 1.1.2.8 2008/09/10 02:28:18 JohnKarahalis Exp $
+
+/**
+ * Implementation of hook_help().
+ */
+function innovationnews_help($path, $arg) {
+  $output = '';
+  switch ($path) {
+    case 'admin/help#innovationnews':
+      $output .= '<p>' . t('The Innovation News module allows a user to ' .
+                 'specify which content types should be considered news. The ' .
+                 'Innovation News modules which display news ' .
+                 '(Edition Manager, Edition Viewer, and Edit News) will only ' .
+                 'display content of the selected types.') . '</p>';
+      break;
+    }
+  return $output;
+} // function innovationnews_help
+
+/**
+ * Implementation of hook_perm().
+ */
+function innovationnews_perm() {
+  return array('administer core innovationnews settings');
+} // function innovationnews_perm
+
+/**
+ * Implementation of hook_menu().
+ */
+function innovationnews_menu() {
+  $items = array();
+  $description = t('Settings which will affect other Innovation News modules');
+
+  $items['admin/settings/innovationnews'] = array(
+    'title' => 'Innovation News',
+    'description' => $description,
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('innovationnews_admin'),
+    'access arguments' => array('administer core innovationnews settings'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+} // function innovationnews_menu
+
+/**
+ * Define the settings form.
+ *
+ * @return
+ *   The form data.
+ */
+function innovationnews_admin() {
+  $description = t('The content types which should be considered news. ' .
+                   'The Innovation News modules which display news (Edition ' .
+                   'Manager, Edition Viewer, and Edit News) will only ' .
+                   'display these types of content.');
+
+  // Get an array of content types, and sanitize all keys and values.
+  $content_types_options = array();
+  $content_types_array = node_get_types('names');
+  foreach ($content_types_array as $key=>$value) {
+    $key = check_plain($key);
+    $value = check_plain($value);
+    $content_types_options[$key] = $value;
+  }
+
+  // Define checkboxes of content types.
+  $form['innovationnews_news_types'] = array(
+    '#type' => 'checkboxes',
+    '#title' => t('News types'),
+    '#description' => $description,
+    '#options' => $content_types_options,
+    '#default_value' => variable_get('innovationnews_news_types',
+                                     array('story' => 'story')),
+    '#required' => TRUE,
+  );
+
+  return system_settings_form($form);
+} // function innovationnews_admin
+
+/**
+ * Check if the parameter is either an int or a string representation of an int.
+ *
+ * Author: http://snipplr.com/view/2705/check-if-integer-value/
+ *
+ * @param $data
+ *   The value to be tested.
+ * @return
+ *   TRUE if the value is either an int or a string representation of an int.
+ */
+function innovationnews_is_int_val($data) {
+  if (is_int($data) === true) {
+    return true;
+  }
+  elseif (is_string($data) === true && is_numeric($data) === true) {
+    return (strpos($data, '.') === false);
+  }
+  return false;
+} // function innovationnews_is_int_val
+
+/**
+ * Return an array of content types which have been set as news.
+ *
+ * @return
+ *   An array of content types which have been set as news.
+ */
+function innovationnews_get_news_types_array() {
+  $default = array('story' => 'story');
+  $settings_values = variable_get('innovationnews_news_types', $default);
+  $news_types = array();
+
+  // Add the selected news types to the return array.
+  foreach ($settings_values as $value) {
+    if ($value != '0') {
+      $news_types[] = $value;
+    }
+  }
+
+  return $news_types;
+} // function innovationnews_get_news_types_array
+
+/**
+ * Return a string which can be used in SQL to refer to news types.
+ *
+ * Format is ('%s', '%s'), with one '%s' for every content type which has been
+ * set as news. These placholders will be filled by db_query().
+ *
+ * @return
+ *   A string which can be used in SQL to refer to news types.
+ */
+function innovationnews_get_news_types_SQL() {
+  $news_types = innovationnews_get_news_types_array();
+
+  // For each content type which has been set as news, add one placeholder.
+  for ($i = 0; $i < count($news_types); $i++) {
+    $placeholders .= "'%s'";
+
+    if ($i != count($news_types) - 1) {
+      $placeholders .= ', ';
+    }
+  }
+
+  $news_types_SQL = '(' . $placeholders . ')';
+
+  return $news_types_SQL;
+} // function innovationnews_get_news_types_SQL
+
+/**
+ * Return HTML which will display story information.
+ *
+ * @param $node
+ *   The node about which story information should be displayed.
+ * @return
+ *   The HTML which will display this story's information.
+ */
+function innovationnews_get_story_info_HTML($node) {
+  $story_info = '';
+
+  $loaded_node = node_load($node->nid);
+  $body_unformatted = strip_tags($loaded_node->body);
+  $body_unformatted = str_replace("\r\n", ' ', $body_unformatted);
+
+  $story_info = '<p id="innovationnews_story_info_title"><strong>';
+  $story_info .= t('Story Information') . '</strong></p>';
+  $story_info .= '<ul class="innovationnews_story_info">';
+
+  // This integrates with installation profile. Otherwise, does not meet
+  // conditions.
+  if ($node->type == 'readerstory') {
+    $story_info .= '<li class="innovationnews_story_info_readerstory">' .
+                   t('Reader Story') . '</li>';
+  }
+
+  $story_info .= '<li>' . t('Character count: ' . strlen($body_unformatted)) .
+                 '</li>';
+
+  if ($node->sticky == 1) {
+    $story_info .= '<li>' . t('Sticky') . '</li>';
+  }
+  
+  $story_info .= '</ul>';
+
+  return check_markup($story_info);
+} // function innovationnews_get_story_info_HTML
