@@ -42,4 +42,5 @@
  */
 //EOF
 define('APP_NAME', 'GH MLS ALPHA');
+define('REMOTE_IMAGE_HOST', 'http://greathomes.org/mls/');
 ?>

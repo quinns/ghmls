@@ -1,0 +1,1 @@
+<?php echo $html->image(array('controller' => 'listing_images', 'action' => 'listing_image', $id)); ?>

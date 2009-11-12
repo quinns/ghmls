@@ -1,0 +1,1 @@
+<?php echo $html->link('Search', array('controller' => 'properties', 'action' => 'search')); ?>
