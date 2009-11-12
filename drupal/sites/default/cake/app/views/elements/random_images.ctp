@@ -15,8 +15,9 @@
 		if($count < $limit){
 		
 			$image_attributes = $image;
-			$my_image =  array('controller' => 'properties', 'action' => 'thumbnail', base64_encode($image['Property']['Primary_Picture_Url']).'/size:full/height:'.$max_height.'/width:'.$max_width.'/image:random_'.($image_counter++).'.jpg');		
-			$attr = getimagesize('http://'.$_SERVER['SERVER_NAME'].'/mls/properties/thumbnail/'.$my_image[0]);
+/* 			$my_image =  array('controller' => 'properties', 'action' => 'thumbnail', base64_encode($image['Property']['Primary_Picture_Url']).'/size:full/height:'.$max_height.'/width:'.$max_width.'/image:random_'.($image_counter++).'.jpg');		 */
+			$my_image =  REMOTE_IMAGE_HOST.'/properties/thumbnail/'.base64_encode($image['Property']['Primary_Picture_Url']).'/size:full/height:'.$max_height.'/width:'.$max_width.'/image:random_'.($image_counter++).'.jpg';		
+			$attr = getimagesize(REMOTE_IMAGE_HOST.'/mls/properties/thumbnail/'.$my_image[0]);
 		 	$image = $html->link($html->image($my_image, array('rel' => 'thickbox', 'title' => strip_tags($image['Property']['Marketing_Remarks']))), array('controller' => 'properties', 'action' => 'view', $image['Property']['ML_Number_Display']), array('class' => null), null, false ); 
 /*
 		 	debug($attr);

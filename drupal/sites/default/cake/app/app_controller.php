@@ -10,7 +10,7 @@
 		var $google_map_API_key = 'ABQIAAAAlPjZCqxWs0OAXuFm9YSgmhRg-aVY9BlnwNEvhA8_bKfCb7GClxQaq4A-6B8Wlpvs8JZOWjHwuWZUkw';
 		var $accessKey = '44c7e4c38a6b28fdde9bd780c20b79f1';
 		var $transaction_types = array('S' => 'For Sale', 'L' => 'For Lease');
-
+/* 		var $layout = 'garland'; */
 		var $resi_subtypes = array(
 			'Single Family' => 'Single Family', 
 			'Condo/Coop' => 'Condo/Coop', 
@@ -58,7 +58,44 @@
 */
 		
 
+		function beforeFilter(){
+		
+
+
+		}
         function beforeRender() {
+
+		    $currdir=getcwd();
+		   	 chdir($_SERVER['DOCUMENT_ROOT']);
+		    require_once("./includes/bootstrap.inc");
+		    @ drupal_bootstrap(DRUPAL_BOOTSTRAP_FULL);
+		    chdir($currdir);
+			
+/*
+			global $theme_key;
+			$themes = list_themes();
+			$theme_object = $themes[$theme_key];
+			// print all the object fields
+			var_dump($theme_object);
+			$current_theme = variable_get('theme_default','none');
+			$themes = list_themes();
+			$theme_object = $themes[$current_theme];
+			// print all the object fields
+			var_dump($theme_object);
+*/
+
+
+	//	drupal_bootstrap(DRUPAL_BOOTSTRAP_SESSION); 
+
+
+        	if($this->layout == 'default'){
+        		$this->layout = 'garland';
+        	}
+
+
+        //	debug(list_themes());
+        	//	drupal_bootstrap(DRUPAL_BOOTSTRAP_FULL);
+/*         	debug($this->params); */
 			// we want to deny any attempts to access this from outside GreatHomes.org domain
 			$host = strtolower($_SERVER['HTTP_HOST']);
 			if($host != 'greathomes.org' && $host != 'www.greathomes.org'){

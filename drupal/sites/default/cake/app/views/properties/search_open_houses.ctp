@@ -8,11 +8,13 @@
 		} else {
 			$county_id = 0;
 		}
+/*
 		if(isset($this->params['named']['county']) && $this->params['named']['county'] != 'find'){
 			echo $this->element('random_images', array('images' => $images, 'cache' => array('time' => '5 minutes', 'key' => $county_id)));
 		} else {
 			echo $this->element('random_images', array('images' => $images, 'cache' => array('time' => '5 minutes', 'key' => null)));
 		}
+*/
 		
 		$primary_counties = $this->requestAction('/counties/get_primary_counties', array('return'));
 	

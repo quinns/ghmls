@@ -30,7 +30,7 @@
 		$first = array('__' => '----- Choose a county -----');
 		$primary_county_select['_'] = ' ----- ';
 		$county_list = array_merge($first, $primary_county_select, $county_list);
-		echo $this->element('random_images', array('images' => $images, 'cache' => array('time' => '5 minutes', 'key' => null)));
+/* 		echo $this->element('random_images', array('images' => $images, 'cache' => array('time' => '5 minutes', 'key' => null))); */
 
 ?>		
 		
