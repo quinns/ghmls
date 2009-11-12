@@ -35,6 +35,7 @@ class PropertiesController extends AppController {
 	}
 
 	function beforeFilter() {
+			parent::beforeFilter();
         	$this->Auth->allow('index','view', 'region', 'search_city', 'counties', 'city', 'zip', 'search', 'search_result', 'thumbnail', 'fullsize_image', 'image', 'listing_agent', 'listing_office', 'search_agents', 'tag_cloud', 'types', 'all_agents', 'open_houses', 'favorites', 'view_favorites');
         	$this->set('pagination_limits', $this->pagination_limits);
 			
@@ -78,6 +79,10 @@ class PropertiesController extends AppController {
 				$this->pageTitle .= ': '.$type['PropertyType']['name'];
 				$this->params['search_type'] = $type['PropertyType']['code'];
 			}
+		}
+		
+		if(isset($this->params['domain_info']['this_client']['search_conditions']) && !isset($this->params['named']['all'])){
+			$conditions[] = $this->params['domain_info']['this_client']['search_conditions'];
 		}
 		$properties = $this->paginate('Property', $conditions);
 		$property_type_filter = null;

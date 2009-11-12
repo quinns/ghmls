@@ -13,6 +13,7 @@ class CountiesController extends AppController {
 
 	// var $scaffold;
    function beforeFilter() {
+ 			parent::beforeFilter();
         	$this->Auth->allow('find_city', 'index', 'view', 'get_primary_counties');		
     }
 

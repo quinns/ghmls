@@ -22,12 +22,19 @@
  * @license       http://www.opensource.org/licenses/mit-license.php The MIT License
  */
 ?>
+<?
+if(isset($this->params['domain_info']['this_client']['client_name'])){
+	$app_name = $this->params['domain_info']['this_client']['client_name'];
+} else {
+	$app_name = APP_NAME;
+}
+?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 	<?php echo $html->charset(); ?>
 	<title>
-		<?php __(APP_NAME); ?>
+		<?php __($app_name); ?> | 
 		<?php echo $title_for_layout; ?>
 	</title>
 	<?php
@@ -41,7 +48,8 @@
 <body>
 	<div id="container">
 		<div id="header">
-			<h1><?php echo $html->link(__(APP_NAME, true), '/'); ?></h1>
+
+			<h1><?php echo $html->link(__($app_name, true), '/'); ?></h1>
 		</div>
 		<div id="content">
 

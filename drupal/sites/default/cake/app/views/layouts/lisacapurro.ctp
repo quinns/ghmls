@@ -71,6 +71,13 @@ jQuery.extend(Drupal.settings, { "basePath": "/", "extlink": { "extTarget": 0, "
       </div> <!-- /header -->
 
               <div id="sidebar-left" class="sidebar">
+			
+			
+			  <h2>Browse Properties</h2>
+			  <ul>
+            <li><?php echo $html->link('My Property Listings', array('controller' => 'properties', 'action' => 'index')); ?></li>
+            <li><?php echo $html->link('All Property Listings', array('controller' => 'properties', 'action' => 'index', 'all:1')); ?></li>
+			</ul>
 <?
 
 /*

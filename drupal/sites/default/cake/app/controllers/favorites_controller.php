@@ -6,7 +6,8 @@ class FavoritesController extends AppController {
 	var $uses = array('Favorite', 'Property');
 	    
     function beforeFilter() {
-        	$this->Auth->allow('*');
+ 		parent::beforeFilter();
+    	$this->Auth->allow('*');
 	}
 	
    function index(){

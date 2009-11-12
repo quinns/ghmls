@@ -43,7 +43,7 @@ echo '<div id="city_list">';
 */
 
 
-	echo '<p>GreatHomes.org provides listing in many counties throughout Northern California and beyond. Please start your search by choosing the county you are interested in.</p>'; 
+	echo '<p>We provide listings in many counties throughout Northern California and beyond. Please start your search by choosing the county you are interested in.</p>'; 
 
 
 		echo $form->create('Property', array('action' => 'search', 'admin' => 0, 'type' => 'get')); // form start

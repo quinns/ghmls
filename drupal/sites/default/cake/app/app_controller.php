@@ -5,7 +5,7 @@
 		var $cacheAction = array(
 			'mls' => '5 minutes'
 		);
-
+   
 		var $uses = array('Listing', 'City', 'County', 'Property', 'PropertyType');
 		var $google_map_API_key = 'ABQIAAAAlPjZCqxWs0OAXuFm9YSgmhRg-aVY9BlnwNEvhA8_bKfCb7GClxQaq4A-6B8Wlpvs8JZOWjHwuWZUkw';
 		var $accessKey = '44c7e4c38a6b28fdde9bd780c20b79f1';
@@ -29,14 +29,71 @@
 			'Warehouse', 		
 		);
 		
-		// note, the Google Map API key is also HARD CODED in vendors/google_geo.php AND helpers/google_map.php
 		
-		/*
-		function error404(){
-			$this->cakeError('error404',array(array('url'=>$this->params['url']['url'])));
+		function client_domains(){ // list of all client domains
+			$clients[] = 
+				 array(
+					'client_name' => 'Lisa Capurro',
+					'alias' => array(
+						'mls.nu-designs.us',
+						'lisacapurro.nu-designs.us',
+						'lisacapurro.com',
+						'www.lisacapurro.com',
+					),
+					'agent_id' => 'B4708',
+					'office_id' => 'ASOTH02',
+					'theme' => 'lisacapurro',
+					'search_conditions' => array(
+						'Property.Agent_NRDS_ID' => 'B4708',
+					), // end LISACAPURRO
+			);
+			$clients[] = 
+				 array(
+					'client_name' => 'Frank Howard Allen',
+					'alias' => array(
+						'fhallen.nu-designs.us',
+						'fhallen.com',
+						'www.fhallen.com',
+					),
+					//'agent_id' => 'B4708',
+					'office_id' => 'AALLN21',
+					'theme' => 'fhallen',
+					'search_conditions' => array(
+						//'MemberAgent.Agent_MLS_ID' => 'B4708',
+						'MemberOffice.Office_MLS_ID' => 'AALLN21',
+					), // end LISACAPURRO
+			);
+
+
+			return $clients;
+		
 		}
-		*/
 		
+		function get_client($domain = null){ // determine which client is loading the app
+			$domains = $this->client_domains();
+			foreach($domains as $domain){
+				if(in_array(HTTP_HOST, $domain['alias'])){
+					$client_data = $domain;
+				}
+			}
+			if(!empty($client_data)){
+				return $client_data;
+			
+			} else {
+				return null;
+			}
+		}
+		
+		function domain_information(){ // combine various domain- and client- related information
+			$info['domain'] = HTTP_HOST;
+/* 			$info['params'] = $this->params; */
+			$info['clients'] = $this->client_domains();
+			$info['this_client'] = $this->get_client($info['domain']);
+			$this->params['domain_info'] = $info;
+			return $info;
+		
+		}
+				
 		// following function from http://dev.sypad.com/projects/drake/documentation/known-issues/
 		function redirect($url, $status=null) {
                 if (defined('DRAKE'))
@@ -47,31 +104,21 @@
                 return parent::redirect($url, $status);
         }
         
-
-/*
-        function beforeFilter() {
-        	$this->Auth->allow('index','view','thumbnail');
-        	if($this->params['url']['url'] == 'imports/update_db/key:'.$this->access_key){ // allow this url to bypass auth (for cron run)
-        		$this->Auth->allow();
-        	}
-		}
-*/
-		
-
-		function beforeFilter(){
-		
-
-
-		}
+        function beforeFilter(){
+        			$domain_info = $this->domain_information();
+			//	die(debug($domain_info));
+        }
+        
         function beforeRender() {
-
+/* 			debug($this->params['domain_info']['this_client']); */
+/*
+			// invoke drupal (not working yet)
 		    $currdir=getcwd();
 		   	 chdir($_SERVER['DOCUMENT_ROOT']);
 		    require_once("./includes/bootstrap.inc");
 		    @ drupal_bootstrap(DRUPAL_BOOTSTRAP_FULL);
 		    chdir($currdir);
-			
-/*
+
 			global $theme_key;
 			$themes = list_themes();
 			$theme_object = $themes[$theme_key];
@@ -83,13 +130,13 @@
 			// print all the object fields
 			var_dump($theme_object);
 */
+			// render our client's "cakeified" drupal theme
+	
 
-
-	//	drupal_bootstrap(DRUPAL_BOOTSTRAP_SESSION); 
-
-
-        	if($this->layout == 'default'){
-        		$this->layout = 'garland';
+			if(isset($this->params['domain_info']['this_client']['theme']) && is_file(LAYOUTS.DS.$this->params['domain_info']['this_client']['theme'].'.ctp')){
+				$this->layout = $this->params['domain_info']['this_client']['theme'];
+			} else if($this->layout == 'default'){
+/*         		$this->layout = 'garland'; */
         	}
 
 
