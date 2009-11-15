@@ -6,7 +6,7 @@
 			'mls' => '5 minutes'
 		);
    
-		var $uses = array('Listing', 'City', 'County', 'Property', 'PropertyType');
+		var $uses = array('Listing', 'City', 'County', 'Property', 'PropertyType', 'Client');
 		var $google_map_API_key = 'ABQIAAAAlPjZCqxWs0OAXuFm9YSgmhRg-aVY9BlnwNEvhA8_bKfCb7GClxQaq4A-6B8Wlpvs8JZOWjHwuWZUkw';
 		var $accessKey = '44c7e4c38a6b28fdde9bd780c20b79f1';
 		var $transaction_types = array('S' => 'For Sale', 'L' => 'For Lease');
@@ -29,48 +29,9 @@
 			'Warehouse', 		
 		);
 		
-		
-		function client_domains(){ // list of all client domains
-			$clients[] = 
-				 array(
-					'client_name' => 'Lisa Capurro',
-					'alias' => array(
-						'mls.nu-designs.us',
-						'lisacapurro.nu-designs.us',
-						'lisacapurro.com',
-						'www.lisacapurro.com',
-					),
-					'agent_id' => 'B4708',
-					'office_id' => 'ASOTH02',
-					'theme' => 'lisacapurro',
-					'search_conditions' => array(
-						'Property.Agent_NRDS_ID' => 'B4708',
-					), // end LISACAPURRO
-			);
-			$clients[] = 
-				 array(
-					'client_name' => 'Frank Howard Allen',
-					'alias' => array(
-						'fhallen.nu-designs.us',
-						'fhallen.com',
-						'www.fhallen.com',
-					),
-					//'agent_id' => 'B4708',
-					'office_id' => 'AALLN21',
-					'theme' => 'fhallen',
-					'search_conditions' => array(
-						//'MemberAgent.Agent_MLS_ID' => 'B4708',
-						'MemberOffice.Office_MLS_ID' => 'AALLN21',
-					), // end LISACAPURRO
-			);
-
-
-			return $clients;
-		
-		}
-		
+				
 		function get_client($domain = null){ // determine which client is loading the app
-			$domains = $this->client_domains();
+			$domains = $this->Client->_client_domains();
 			foreach($domains as $domain){
 				if(in_array(HTTP_HOST, $domain['alias'])){
 					$client_data = $domain;
@@ -86,8 +47,7 @@
 		
 		function domain_information(){ // combine various domain- and client- related information
 			$info['domain'] = HTTP_HOST;
-/* 			$info['params'] = $this->params; */
-			$info['clients'] = $this->client_domains();
+/* 			$info['clients'] = $this->Client->_client_domains(); */
 			$info['this_client'] = $this->get_client($info['domain']);
 			$this->params['domain_info'] = $info;
 			return $info;

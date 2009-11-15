@@ -38,16 +38,21 @@ class PropertiesController extends AppController {
 			parent::beforeFilter();
         	$this->Auth->allow('index','view', 'region', 'search_city', 'counties', 'city', 'zip', 'search', 'search_result', 'thumbnail', 'fullsize_image', 'image', 'listing_agent', 'listing_office', 'search_agents', 'tag_cloud', 'types', 'all_agents', 'open_houses', 'favorites', 'view_favorites');
         	$this->set('pagination_limits', $this->pagination_limits);
-			
+        	
+        	$client_data = $this->_client_data();
+        	$this->set('client_data', $client_data);
+/*         	debug($client_data); */
+        	$client_id = $client_data['id'];
+        	if(!isset($this->params['named']['filter']) || !isset($this->params['named']['client'])){
+/*         		die(debug($_SERVER));  */
+				//die('http://'.HTTP_HOST.$_SERVER['REQUEST_URI']. '/filter:all');
+        		$this->redirect('http://'.HTTP_HOST.$_SERVER['REQUEST_URI']. '/filter:all/client:'.$client_id);
+        		exit();
+        	}
+        	
+
 	}
 
-	/*
-	function index() {
-		$this->pageTitle = 'Property Properties Index';
-		$properties = $this->paginate();
-		$this->set(compact('properties'));
-	}
-	*/
 	
 	function types(){
 		$this->pageTitle = 'Property Types';
@@ -60,18 +65,38 @@ class PropertiesController extends AppController {
 		$this->set(compact('types'));
 	}
 	
-	function index($property_type = null) {
-	
-/*
-		if($this->RequestHandler->isRss() == true){
-			if(!isset($this->params['named']['key'])){
-				$this->render();
-			}
+	function _client_data(){		
+		if(isset($this->params['domain_info']['this_client']) && !isset($this->params['named']['all'])){
+			$output = $this->params['domain_info']['this_client'];
+			return($output);
+		} else {
+			return(null);
 		}
-*/
-		//$this->Property->recursive = -1;
+	}
+	
+	function _parse_client_param(){
+		$client_data = $this->_client_data();
+/* 		debug($client_data); */
+		$param = @$this->params['named']['filter'];
+		if(!empty($param)){
+			$conditions = $client_data['search_conditions'][$param]['conditions'];
+			return ($conditions);
+		} else{
+			return(null);
+		}
+	}
+	
+	
+
+	function index($property_type = null) {
+
 		$this->pageTitle = 'Properties Index';
-		$conditions = null;
+		$conditions = null;	
+		$conditions[] = $this->_parse_client_param(); // GET CLIENT PARAMETERS
+		$title = $this->_client_data();
+		$this->pageTitle = $title['search_conditions'][$this->params['named']['filter']]['name'];
+/* 		debug($title); */
+/* 		debug($conditions); */
 		if($property_type != null){
 			$type = $this->PropertyType->findBySlug($property_type);			
 			$conditions['PropertyType.code'] = strtoupper($type['PropertyType']['code']);
@@ -81,9 +106,7 @@ class PropertiesController extends AppController {
 			}
 		}
 		
-		if(isset($this->params['domain_info']['this_client']['search_conditions']) && !isset($this->params['named']['all'])){
-			$conditions[] = $this->params['domain_info']['this_client']['search_conditions'];
-		}
+
 		$properties = $this->paginate('Property', $conditions);
 		$property_type_filter = null;
 		$count = 0;
@@ -1699,39 +1722,7 @@ class PropertiesController extends AppController {
 		$this->render('index');
 	}
 
-/*
-	function _update_open_house_timestamps(){
-		$this->autoRender = false;
-		$this->Property->recursive = -1;
-		$message = array();
-		$properties = $this->Property->find('all', array('fields' => 'id, ML_Number_Display, Open_House_Start_Date, Open_House_Start_Time, Open_House_End_Time, Open_House_End_Timestamp', 'conditions' => array('Open_House_Start_Date <> "" AND Open_House_Start_Date IS NOT NULL')));
-		foreach($properties as $property){
-			$combined_start_time = $property['Property']['Open_House_Start_Date'].' '.$property['Property']['Open_House_Start_Time'];			
-			$start_time = date("Y-m-d H:i:s", strtotime($property['Property']['Open_House_Start_Date'].' '.$property['Property']['Open_House_Start_Time']));
-			$start_timestamp = strtotime($start_time); 
-			$property['Property']['Open_House_Start_Timestamp'] = date("Y-m-d H:i:s", $start_timestamp);		
-			$combined_end_time = $property['Property']['Open_House_Start_Date'].' '.$property['Property']['Open_House_End_Time'];			
-			$end_time = date("Y-m-d H:i:s", strtotime($property['Property']['Open_House_Start_Date'].' '.$property['Property']['Open_House_End_Time']));
-			$end_timestamp = strtotime($end_time); 
-			$property['Property']['Open_House_End_Timestamp'] = date("Y-m-d H:i:s", $end_timestamp);		
-			$this->Property->save($property);
-			$message[] = 'Updated Open House timestamps for ML Number: '.$property['Property']['ML_Number_Display'];
-		}
-			return $message;
 
-	}
-	
-*/
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	
 
 }
-?>

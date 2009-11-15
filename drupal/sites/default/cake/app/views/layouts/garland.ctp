@@ -72,7 +72,7 @@ jQuery.extend(Drupal.settings, { "basePath": "/", "extlink": { "extTarget": 0, "
 
               <div id="sidebar-left" class="sidebar">
 <?
-
+	echo $this->element('properties_menu', array('client_data' => $client_data));
 /*
                     <div id="block-user-0" class="clear-block block block-user">
 
