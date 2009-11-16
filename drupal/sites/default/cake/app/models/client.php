@@ -22,7 +22,6 @@ class Client extends AppModel {
 							'conditions' => array(
 								'Property.Agent_NRDS_ID' => 'B4708',
 							),
-
 						),
 						'my_sonoma' => array(
 							'name' => 'My Listings: Sonoma County (Residential)',
@@ -52,7 +51,6 @@ class Client extends AppModel {
 							'conditions' => array(
 								 'Property.Office_ID' => 'AALLN21',
 							),
-
 						),
 						'my_mendo' => array(
 							'name' => 'My Listings: Mendocino County (Residential)',

@@ -171,7 +171,7 @@ foreach ($properties as $property):
 ?>
 	<tr<?php echo $class;?>>
 		<td>
-		<?php echo $html->link($html->image(array('admin' => 0, 'controller' => 'properties', 'action' => 'image', $property['Property']['ML_Number_Display'].'/thumb/image:thumb_'.$property['Property']['ML_Number_Display'].'.jpg'), array('title' => $text->trim($property['Property']['Marketing_Remarks'], 500))), array('controller' => 'properties', 'action' => 'view', $property['Property']['ML_Number_Display']), null, null, false); 
+		<?php echo $html->link($html->image(array('admin' => 0, 'controller' => 'properties', 'action' => 'image', $property['Property']['ML_Number_Display'].'/thumb/image:thumb_'.$property['Property']['ML_Number_Display'].'.jpg'), array('title' => $text->trim($property['Property']['Marketing_Remarks'], 500))), array('controller' => 'properties', 'action' => 'view', $property['Property']['ML_Number_Display'].$this->element('client_filter')), null, null, false); 
 
 		
 		?>
@@ -219,13 +219,13 @@ foreach ($properties as $property):
 				}
 				if(is_array($favorites) && in_array($property['Property']['ML_Number_Display'], $favorites)){
 					if($this->params['action'] != 'favorites'){	
-						echo '<br />'.$html->link('Remove from favorites', array('controller' => 'favorites', 'action' => 'remove', $property['Property']['ML_Number_Display']));
+						echo '<br />'.$html->link('Remove from favorites', array('controller' => 'favorites', 'action' => 'remove', $property['Property']['ML_Number_Display'].$this->element('client_filter')));
 					} else {
-						echo '<br />'.$html->link('Remove', array('controller' => 'favorites', 'action' => 'remove', $property['Property']['ML_Number_Display']));
+						echo '<br />'.$html->link('Remove', array('controller' => 'favorites', 'action' => 'remove', $property['Property']['ML_Number_Display'].$this->element('client_filter')));
 				
 					}
 				} else {
-				echo '<br />'.$html->link('Add to favorites', array('controller' => 'favorites', 'action' => 'add', $property['Property']['ML_Number_Display']));
+				echo '<br />'.$html->link('Add to favorites', array('controller' => 'favorites', 'action' => 'add', $property['Property']['ML_Number_Display'].$this->element('client_filter')));
 				}
 			}
 		?>
@@ -242,7 +242,7 @@ foreach ($properties as $property):
 		<?  } ?>
 		
 		<td>
-			<?php echo $html->link(__($property['Property']['ML_Number_Display'], true), array('admin' => 0, 'action'=>'view', $property['Property']['ML_Number_Display'])); ?>&nbsp;
+			<?php echo $html->link(__($property['Property']['ML_Number_Display'], true), array('admin' => 0, 'action'=>'view', $property['Property']['ML_Number_Display'].$this->element('client_filter'))); ?>&nbsp;
 		</td>
 
 		<td>
@@ -297,18 +297,18 @@ foreach ($properties as $property):
 		</td>
 			<?php if  ($this->params['action'] != 'city') {  ?>
 		<td>
-			<?php echo  $html->link($property['Property']['City'], array('controller' => 'properties', 'action' => 'city', strtolower((Inflector::slug($property['Property']['City']))))) ;  ?>&nbsp;
+			<?php echo  $html->link($property['Property']['City'], array('controller' => 'properties', 'action' => 'city', strtolower((Inflector::slug($property['Property']['City']))).$this->element('client_filter'))) ;  ?>&nbsp;
 		</td>
 			<?   } ?>
 			<?php if  ($this->params['action'] != 'region' && !isset($open_house)) {  ?>
 				<td>
-				<?php echo  $html->link($property['Property']['County'], array('controller' => 'properties', 'action' => 'region', strtolower(Inflector::slug($property['Property']['County'])))) ;  ?>&nbsp;
+				<?php echo  $html->link($property['Property']['County'], array('controller' => 'properties', 'action' => 'region', strtolower(Inflector::slug($property['Property']['County'])).$this->element('client_filter'))) ;  ?>&nbsp;
 				</td>
 			<?   } ?>
 
 		<?php if  ($this->params['action'] != 'zip' && !isset($open_house)) {  ?>
 		<td>
-			<?php echo  $html->link(substr($property['Property']['Zip_Code'], 0, 5), array('controller' => 'properties', 'action' => 'zip', strtolower((Inflector::slug(substr($property['Property']['Zip_Code'], 0, 5)))))) ;  ?>&nbsp;
+			<?php echo  $html->link(substr($property['Property']['Zip_Code'], 0, 5), array('controller' => 'properties', 'action' => 'zip', strtolower((Inflector::slug(substr($property['Property']['Zip_Code'], 0, 5))).$this->element('client_filter')))) ;  ?>&nbsp;
 		</td>
 		<? } ?>
 		

@@ -7,7 +7,7 @@ debug($property);
 if(isset($_SERVER['HTTP_REFERER'])){
 	$referrer =  $_SERVER['HTTP_REFERER'];
 	if(stristr($referrer, 'greathomes') !== false){
-		echo '<p>'.$html->link('Return to Search Results', $referrer).'</p>';
+		echo '<p>'.$html->link('Return to Search Results', $referrer.$this->element('client_filter')).'</p>';
 	}
 }
 
@@ -67,27 +67,27 @@ if(isset($_SERVER['HTTP_REFERER'])){
 					// special cases
 					$form_url = 'http://'.$_SERVER['SERVER_NAME'].'/contact-agent';
 					if($sub_label == 'City'){
-						$item =  $html->link($item, array('controller' => 'properties', 'action' => 'city', Inflector::slug(strtolower($city['City']['name']))));
+						$item =  $html->link($item, array('controller' => 'properties', 'action' => 'city', Inflector::slug(strtolower($city['City']['name'])).$this->element('client_filter')));
 					} else if($sub_label == 'County'){
-						$item =  $html->link($item, array('controller' => 'properties', 'action' => 'region', Inflector::slug(strtolower($city['County']['name']))));
+						$item =  $html->link($item, array('controller' => 'properties', 'action' => 'region', Inflector::slug(strtolower($city['County']['name'])).$this->element('client_filter')));
 					} else if ($sub_label == 'Zip'){
-						$item =  $html->link($item, array('controller' => 'properties', 'action' => 'zip', $item));
+						$item =  $html->link($item, array('controller' => 'properties', 'action' => 'zip', $item.$this->element('client_filter')));
 					} else if ($sub_label == 'Listing Agent' && !empty($property['Property']['Agent_Number'])){
 						if(!empty($property['Property']['Agent_License'])){
-							$item = $html->link($item, array('controller' => 'properties', 'action' => 'listing_agent', $property['Property']['Agent_Number'])).' (Lic: '.$property['Property']['Agent_License'].')';
+							$item = $html->link($item, array('controller' => 'properties', 'action' => 'listing_agent', $property['Property']['Agent_Number'].$this->element('client_filter'))).' (Lic: '.$property['Property']['Agent_License'].')';
 						}			
 					}
 					 else if ($sub_label == 'Listing Office' && !empty($property['Property']['Office_NRDS_ID'])){
 					 
 					 	if(!empty($member_office['MemberOffice']['Office_Corporate_License'])){
-						$item = $html->link($item, array('controller' => 'properties', 'action' => 'listing_office', $property['Property']['Office_NRDS_ID']));
+						$item = $html->link($item, array('controller' => 'properties', 'action' => 'listing_office', $property['Property']['Office_NRDS_ID'].$this->element('client_filter')));
 						/* ------- */
 						$item .= ' (Lic: '.$member_office['MemberOffice']['Office_Corporate_License'].')';
 						}
 			
 					}
 					 else if ($sub_label == 'Listing Office' && !empty($property['Property']['Office_NRDS_ID'])){
-						$item = $html->link($item, array('controller' => 'properties', 'action' => 'listing_office', $property['Property']['Office_NRDS_ID']));
+						$item = $html->link($item, array('controller' => 'properties', 'action' => 'listing_office', $property['Property']['Office_NRDS_ID'].$this->element('client_filter')));
 					}	
 					 else if ($sub_label == 'Listing Agent Email' && !empty($property['Property']['Agent_Email_Address'])){
 						$item = $form->create('Property', array('url' => $form_url));

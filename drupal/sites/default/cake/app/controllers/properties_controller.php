@@ -38,19 +38,15 @@ class PropertiesController extends AppController {
 			parent::beforeFilter();
         	$this->Auth->allow('index','view', 'region', 'search_city', 'counties', 'city', 'zip', 'search', 'search_result', 'thumbnail', 'fullsize_image', 'image', 'listing_agent', 'listing_office', 'search_agents', 'tag_cloud', 'types', 'all_agents', 'open_houses', 'favorites', 'view_favorites');
         	$this->set('pagination_limits', $this->pagination_limits);
-        	
         	$client_data = $this->_client_data();
         	$this->set('client_data', $client_data);
-/*         	debug($client_data); */
         	$client_id = $client_data['id'];
+/*
         	if(!isset($this->params['named']['filter']) || !isset($this->params['named']['client'])){
-/*         		die(debug($_SERVER));  */
-				//die('http://'.HTTP_HOST.$_SERVER['REQUEST_URI']. '/filter:all');
         		$this->redirect('http://'.HTTP_HOST.$_SERVER['REQUEST_URI']. '/filter:all/client:'.$client_id);
         		exit();
         	}
-        	
-
+*/
 	}
 
 	
