@@ -14,7 +14,7 @@ class Client extends AppModel {
 						'mls-test1.com',
 						'www.mls-test1.com',
 					),
-					'theme' => 'lisacapurro',
+					'theme' => 'arthemia',
 					'search_conditions' => array(
 						'all' => $this->_all(),
 						'my_all' => array(

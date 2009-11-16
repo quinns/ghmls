@@ -65,7 +65,7 @@ jQuery.extend(Drupal.settings, { "basePath": "/", "extlink": { "extTarget": 0, "
 
       <div id="header">
         <div id="logo-floater">
-        <h1><a href="/" title="Nu-Designs MLS"><span><?php echo $app_name; ?></span></a></h1>        </div>
+        <h1><a href="/" title="<?php echo $app_name; ?>"><span><?php echo $app_name; ?></span></a></h1>        </div>
 
                                                     
       </div> <!-- /header -->
@@ -126,7 +126,11 @@ jQuery.extend(Drupal.settings, { "basePath": "/", "extlink": { "extTarget": 0, "
                     <div id="footer"><div id="block-system-0" class="clear-block block block-system">
 
 
-  <div class="content"><a href="http://drupal.org"><img src="/misc/powered-blue-80x15.png" alt="Powered by Drupal, an open source content management system" title="Powered by Drupal, an open source content management system" width="80" height="15" /></a></div>
+  <div class="content">
+  
+<!--   <a href="http://drupal.org"><img src="/misc/powered-blue-80x15.png" alt="Powered by Drupal, an open source content management system" title="Powered by Drupal, an open source content management system" width="80" height="15" /></a> -->
+  
+  </div>
 </div>
 </div>
       </div></div></div></div> <!-- /.left-corner, /.right-corner, /#squeeze, /#center -->
