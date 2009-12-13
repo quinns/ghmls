@@ -38,7 +38,7 @@ class Client extends AppModel {
 					'client_name' => 'MLS TEST 2',
 					'id' => 'mlstest2',
 					'alias' => array(
-						'mls.nu-designs.us',
+						//'mls.nu-designs.us',
 						'mls-test2.nu-designs.us',
 						'mls-test2.com',
 						'www.mls-test2.com',

@@ -1,0 +1,1 @@
+<? echo $this->element('properties_menu', array('client_data' => $client_data)); ?>

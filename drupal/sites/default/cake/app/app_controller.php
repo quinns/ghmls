@@ -70,7 +70,11 @@
         }
         
         function beforeRender() {
-/* 			debug($this->params['domain_info']['this_client']); */
+
+/* 			debug($this->params['domain_info']['this_client']);  */
+			if(empty($this->params['domain_info']['this_client']) || !isset($this->params['domain_info']['this_client'])){
+			//	die('FAIL: Could not read configuration data.');
+			}
 /*
 			// invoke drupal (not working yet)
 		    $currdir=getcwd();

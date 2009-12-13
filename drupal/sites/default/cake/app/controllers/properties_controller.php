@@ -29,6 +29,11 @@ class PropertiesController extends AppController {
 	
 	var $pagination_limits = array(5 => 5, 10 => 10, 20 => 20, 50 => 50, 100 => 100);
 	
+	function start(){
+		$this->render();
+	}
+	
+	
 	function open_house_start(){
 		$this->autoRender = false;
 		$this->redirect(array('controller' => 'properties', 'action' => 'search', 'open_house:1'));
@@ -36,7 +41,7 @@ class PropertiesController extends AppController {
 
 	function beforeFilter() {
 			parent::beforeFilter();
-        	$this->Auth->allow('index','view', 'region', 'search_city', 'counties', 'city', 'zip', 'search', 'search_result', 'thumbnail', 'fullsize_image', 'image', 'listing_agent', 'listing_office', 'search_agents', 'tag_cloud', 'types', 'all_agents', 'open_houses', 'favorites', 'view_favorites');
+        	$this->Auth->allow('index','view', 'region', 'search_city', 'counties', 'city', 'zip', 'search', 'search_result', 'thumbnail', 'fullsize_image', 'image', 'listing_agent', 'listing_office', 'search_agents', 'tag_cloud', 'types', 'all_agents', 'open_houses', 'favorites', 'view_favorites', 'start');
         	$this->set('pagination_limits', $this->pagination_limits);
         	$client_data = $this->_client_data();
         	$this->set('client_data', $client_data);
